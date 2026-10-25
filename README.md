@@ -1,2 +1,2 @@
 # wapi-courant-242
-Wapi courant 242 est applicaion web et citoynne dediée au suivi en directe de l'ectricité à travers toute la Répiblique du Congo.
+Wapi courant 242 est application web participative et citoyenne dédiée au suivi en directe de l'électricité à travers toute la République du Congo. elle permet aux habitants de signaler instantanément les coupures ou les rétablissement de courant dans les quartiers, de consulter une carte interactive des zones touchées, et d'échanger en temps réel via un chat communautaire régionalisé afin de s'informer et de s'entraider faces aux délestages.
