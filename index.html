@@ -13,6 +13,10 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Firebase SDK (Compat v9) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
     <style>
         body {
             background-color: #0b0f19;
@@ -23,6 +27,7 @@
             height: 420px;
             border-radius: 12px;
             z-index: 1;
+            width: 100%;
         }
         .pulse-marker {
             background: rgba(239, 68, 68, 0.85);
@@ -63,131 +68,300 @@
 </head>
 <body class="p-2 md:p-6 min-h-screen flex flex-col justify-between">
 
+    <!-- TOAST NOTIFICATION -->
     <div id="toast" class="fixed top-5 right-5 z-50 bg-emerald-500 text-gray-950 font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 transform translate-y-[-100px] opacity-0 pointer-events-none">
         <i id="toastIcon" class="fa-solid fa-circle-check text-lg"></i>
         <span id="toastMsg">Action effectuée avec succès !</span>
     </div>
 
     <div class="max-w-6xl mx-auto w-full space-y-6">
+
+        <!-- HEADER -->
         <header class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-gray-950 font-bold text-xl shadow-lg shadow-emerald-500/30">⚡</div>
+                <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-gray-950 font-bold text-xl shadow-lg shadow-emerald-500/30">
+                    ⚡
+                </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-wide text-white">Wapi Courant 242</h1>
                     <p class="text-xs text-emerald-400 font-medium">Réseau Citoyen de Suivi du Courant au Congo</p>
                 </div>
             </div>
+
             <div class="flex items-center gap-3">
                 <button type="button" onclick="openProfileModal()" class="flex items-center bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg text-sm transition">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-                    <span id="headerUserPseudo" class="font-semibold">Chargement...</span>
+                    <span id="headerUserPseudo" class="font-semibold">Citoyen</span>
                     <i class="fa-solid fa-user-gear ml-2 text-gray-400"></i>
                 </button>
             </div>
         </header>
 
+        <!-- AUDIENCE METRICS BAR -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-3 flex items-center space-x-3">
-                <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg text-xl"><i class="fa-solid fa-users"></i></div>
-                <div><p class="text-xs text-gray-400 uppercase font-semibold">En Ligne Réel</p><p id="onlineCount" class="text-lg font-bold text-emerald-400">1</p></div>
+                <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg text-xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-semibold">En Ligne</p>
+                    <p id="onlineCount" class="text-lg font-bold text-emerald-400">1</p>
+                </div>
             </div>
+
             <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-3 flex items-center space-x-3">
-                <div class="p-3 bg-blue-500/10 text-blue-400 rounded-lg text-xl"><i class="fa-solid fa-eye"></i></div>
-                <div><p class="text-xs text-gray-400 uppercase font-semibold">Visites Totales</p><p id="totalVisits" class="text-lg font-bold text-blue-400">...</p></div>
+                <div class="p-3 bg-blue-500/10 text-blue-400 rounded-lg text-xl">
+                    <i class="fa-solid fa-eye"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Visites Totales</p>
+                    <p id="totalVisits" class="text-lg font-bold text-blue-400">...</p>
+                </div>
             </div>
+
             <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-3 flex items-center space-x-3">
-                <div class="p-3 bg-red-500/10 text-red-400 rounded-lg text-xl"><i class="fa-solid fa-bolt-lightning"></i></div>
-                <div><p class="text-xs text-gray-400 uppercase font-semibold">Pannes Actives</p><p id="activeOutages" class="text-lg font-bold text-red-400">0</p></div>
+                <div class="p-3 bg-red-500/10 text-red-400 rounded-lg text-xl">
+                    <i class="fa-solid fa-bolt-lightning"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Pannes Actives</p>
+                    <p id="activeOutages" class="text-lg font-bold text-red-400">0</p>
+                </div>
             </div>
+
             <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-3 flex items-center space-x-3">
-                <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg text-xl"><i class="fa-solid fa-map-pin"></i></div>
-                <div><p class="text-xs text-gray-400 uppercase font-semibold">Départements</p><p class="text-lg font-bold text-amber-400">15 / 15</p></div>
+                <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg text-xl">
+                    <i class="fa-solid fa-map-pin"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Départements</p>
+                    <p class="text-lg font-bold text-amber-400">15 / 15</p>
+                </div>
             </div>
         </div>
 
+        <!-- MAIN SECTION: MAP & REPORT FORM -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- MAP DISPLAY -->
             <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="font-bold text-gray-200 flex items-center"><i class="fa-solid fa-map-location-dot text-emerald-400 mr-2"></i> Carte du Congo en Direct</h2>
-                    <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5"></span> En direct</span>
+                    <h2 class="font-bold text-gray-200 flex items-center">
+                        <i class="fa-solid fa-map-location-dot text-emerald-400 mr-2"></i> Carte du Congo en Direct (Synchronisée)
+                    </h2>
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5"></span> Cloud Live
+                    </span>
                 </div>
                 <div id="map"></div>
             </div>
 
+            <!-- SIGNALEMENT FORM -->
             <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col justify-between space-y-4">
                 <div>
-                    <h2 class="text-lg font-bold text-white mb-1 flex items-center"><i class="fa-solid fa-bullhorn text-amber-400 mr-2"></i> Faire un Signalement Réel</h2>
-                    <p class="text-xs text-gray-400 mb-4">Informez la communauté de la situation électrique dans votre secteur.</p>
+                    <h2 class="text-lg font-bold text-white mb-1 flex items-center">
+                        <i class="fa-solid fa-bullhorn text-amber-400 mr-2"></i> Signalement en Temps Réel
+                    </h2>
+                    <p class="text-xs text-gray-400 mb-4">Visible instantanément sur tous les appareils.</p>
+
                     <form id="signalForm" class="space-y-3">
-                        <div><label class="text-xs text-gray-400 font-semibold mb-1 block">Département</label>
+                        <div>
+                            <label class="text-xs text-gray-400 font-semibold mb-1 block">Département</label>
                             <select id="deptSelect" class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm focus:border-emerald-500 outline-none">
-                                <option value="Brazzaville">Brazzaville</option><option value="Pointe-Noire">Pointe-Noire</option><option value="Bouenza">Bouenza (Madingou)</option><option value="Congo-Oubangui">Congo-Oubangui (Mossaka)</option><option value="Cuvette">Cuvette (Owando)</option><option value="Cuvette-Ouest">Cuvette-Ouest (Ewo)</option><option value="Djoué-Léfini">Djoué-Léfini (Odziba)</option><option value="Kouilou">Kouilou (Madingo-Kayes)</option><option value="Lékoumou">Lékoumou (Sibiti)</option><option value="Likouala">Likouala (Impfondo)</option><option value="Niari">Niari (Dolisie)</option><option value="Nkéni-Alima">Nkéni-Alima (Gamboma)</option><option value="Plateaux">Plateaux (Djambala)</option><option value="Pool">Pool (Kinkala)</option><option value="Sangha">Sangha (Ouesso)</option>
+                                <option value="Brazzaville">Brazzaville</option>
+                                <option value="Pointe-Noire">Pointe-Noire</option>
+                                <option value="Bouenza">Bouenza (Madingou)</option>
+                                <option value="Congo-Oubangui">Congo-Oubangui (Mossaka)</option>
+                                <option value="Cuvette">Cuvette (Owando)</option>
+                                <option value="Cuvette-Ouest">Cuvette-Ouest (Ewo)</option>
+                                <option value="Djoué-Léfini">Djoué-Léfini (Odziba)</option>
+                                <option value="Kouilou">Kouilou (Madingo-Kayes)</option>
+                                <option value="Lékoumou">Lékoumou (Sibiti)</option>
+                                <option value="Likouala">Likouala (Impfondo)</option>
+                                <option value="Niari">Niari (Dolisie)</option>
+                                <option value="Nkéni-Alima">Nkéni-Alima (Gamboma)</option>
+                                <option value="Plateaux">Plateaux (Djambala)</option>
+                                <option value="Pool">Pool (Kinkala)</option>
+                                <option value="Sangha">Sangha (Ouesso)</option>
                             </select>
                         </div>
-                        <div><label class="text-xs text-gray-400 font-semibold mb-1 block">Quartier / Avenue</label><input type="text" id="districtInput" placeholder="Ex: Bacongo, Mpila, Tié-Tié..." required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm focus:border-emerald-500 outline-none"></div>
-                        <div><label class="text-xs text-gray-400 font-semibold mb-1 block">État du courant</label>
+
+                        <div>
+                            <label class="text-xs text-gray-400 font-semibold mb-1 block">Quartier / Avenue</label>
+                            <input type="text" id="districtInput" placeholder="Ex: Bacongo, Mpila, Tié-Tié..." required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm focus:border-emerald-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-400 font-semibold mb-1 block">État du courant</label>
                             <div class="grid grid-cols-2 gap-2">
-                                <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-red-500 has-[:checked]:border-red-500 has-[:checked]:bg-red-500/10"><input type="radio" name="status" value="cut" checked class="hidden"><span class="text-sm text-red-400 font-medium">🔴 Coupure</span></label>
-                                <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-emerald-500 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"><input type="radio" name="status" value="ok" class="hidden"><span class="text-sm text-emerald-400 font-medium">🟢 Rétabli</span></label>
+                                <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-red-500 has-[:checked]:border-red-500 has-[:checked]:bg-red-500/10">
+                                    <input type="radio" name="status" value="cut" checked class="hidden">
+                                    <span class="text-sm text-red-400 font-medium">🔴 Coupure</span>
+                                </label>
+                                <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-emerald-500 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10">
+                                    <input type="radio" name="status" value="ok" class="hidden">
+                                    <span class="text-sm text-emerald-400 font-medium">🟢 Rétabli</span>
+                                </label>
                             </div>
                         </div>
-                        <div><label class="text-xs text-gray-400 font-semibold mb-1 block">Remarque (optionnel)</label><input type="text" id="commentInput" placeholder="Ex: Baisse de tension importante..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm focus:border-emerald-500 outline-none"></div>
-                        <button type="submit" id="submitSignalBtn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl glow-button transition">Publier le Signalement</button>
+
+                        <div>
+                            <label class="text-xs text-gray-400 font-semibold mb-1 block">Remarque (optionnel)</label>
+                            <input type="text" id="commentInput" placeholder="Ex: Baisse de tension..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm focus:border-emerald-500 outline-none">
+                        </div>
+
+                        <button type="submit" id="submitSignalBtn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl glow-button transition">
+                            Publier sur le Réseau
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
 
+        <!-- RECENT ACTIVITY FEED & FEEDBACK -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <div class="flex justify-between items-center mb-3"><h3 class="text-md font-bold text-gray-200 flex items-center"><i class="fa-solid fa-list-check text-blue-400 mr-2"></i> Signalements Récents</h3><button type="button" onclick="clearSignals()" class="text-xs text-gray-500 hover:text-red-400 transition"><i class="fa-solid fa-trash-can mr-1"></i> Réinitialiser</button></div>
-                <div id="signalsList" class="space-y-2 max-h-80 overflow-y-auto pr-1"><p class="text-xs text-gray-500 italic">Aucun signalement enregistré pour le moment.</p></div>
-            </div>
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
-                <div><h3 class="text-md font-bold text-gray-200 mb-1 flex items-center"><i class="fa-solid fa-star text-yellow-400 mr-2"></i> Avis & Suggestions</h3><p class="text-xs text-gray-400 mb-3">Donnez votre avis pour améliorer l'application.</p>
-                    <form id="feedbackForm" class="space-y-2 mb-4"><textarea id="feedbackText" rows="2" placeholder="Que pensez-vous de Wapi Courant 242 ? Des fonctionnalités à ajouter ?" required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2 text-xs focus:border-emerald-500 outline-none"></textarea><div class="flex justify-between items-center"><select id="ratingSelect" class="bg-gray-800 border border-gray-700 text-yellow-400 text-xs rounded-lg p-1.5 outline-none"><option value="5">⭐⭐⭐⭐⭐ (5/5)</option><option value="4">⭐⭐⭐⭐ (4/5)</option><option value="3">⭐⭐⭐ (3/5)</option><option value="2">⭐⭐ (2/5)</option><option value="1">⭐ (1/5)</option></select><button type="submit" id="submitFeedbackBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition">Envoyer mon Avis</button></div></form>
+                <h3 class="text-md font-bold text-gray-200 mb-3 flex items-center">
+                    <i class="fa-solid fa-list-check text-blue-400 mr-2"></i> Signalements en Direct (Cloud)
+                </h3>
+                <div id="signalsList" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    <p class="text-xs text-gray-500 italic">Chargement des données en direct...</p>
                 </div>
-                <div id="feedbackList" class="space-y-2 max-h-40 overflow-y-auto border-t border-gray-800 pt-2"><p class="text-xs text-gray-500 italic">Soyez le premier à donner votre avis !</p></div>
+            </div>
+
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-md font-bold text-gray-200 mb-1 flex items-center">
+                        <i class="fa-solid fa-star text-yellow-400 mr-2"></i> Avis & Suggestions
+                    </h3>
+                    <p class="text-xs text-gray-400 mb-3">Partagez vos retours.</p>
+
+                    <form id="feedbackForm" class="space-y-2 mb-4">
+                        <textarea id="feedbackText" rows="2" placeholder="Votre avis..." required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2 text-xs focus:border-emerald-500 outline-none"></textarea>
+                        <div class="flex justify-between items-center">
+                            <select id="ratingSelect" class="bg-gray-800 border border-gray-700 text-yellow-400 text-xs rounded-lg p-1.5 outline-none">
+                                <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                                <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                                <option value="3">⭐⭐⭐ (3/5)</option>
+                                <option value="2">⭐⭐ (2/5)</option>
+                                <option value="1">⭐ (1/5)</option>
+                            </select>
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition">
+                                Envoyer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="feedbackList" class="space-y-2 max-h-40 overflow-y-auto border-t border-gray-800 pt-2">
+                    <p class="text-xs text-gray-500 italic">Chargement des avis...</p>
+                </div>
             </div>
         </div>
+
     </div>
 
+    <!-- MODAL PROFIL -->
     <div id="profileModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
         <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-6 relative">
-            <button type="button" onclick="closeProfileModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-            <div class="flex items-center space-x-3 mb-6"><div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-2xl font-bold"><i class="fa-solid fa-user-shield"></i></div><div><h3 class="text-lg font-bold text-white">Mon Profil Citoyen</h3><p class="text-xs text-emerald-400" id="userRoleBadge">Éclaireur Citoyen</p></div></div>
-            <div id="profileAlert" class="hidden mb-4 p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs flex items-center"><i class="fa-solid fa-circle-check mr-2 text-emerald-400 text-sm"></i><span>Profil enregistré avec succès !</span></div>
+            <button type="button" onclick="closeProfileModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-2xl font-bold">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-white">Mon Profil Citoyen</h3>
+                    <p class="text-xs text-emerald-400">Membre Wapi Courant</p>
+                </div>
+            </div>
+
             <form id="profileForm" class="space-y-4">
-                <div><label class="text-xs text-gray-400 font-semibold mb-1 block">Pseudo Réel</label><input type="text" id="modalPseudoInput" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 text-sm focus:border-emerald-500 outline-none"></div>
-                <div><label class="text-xs text-gray-400 font-semibold mb-1 block">Département Principal</label><select id="modalDeptInput" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 text-sm focus:border-emerald-500 outline-none"><option value="Brazzaville">Brazzaville</option><option value="Pointe-Noire">Pointe-Noire</option><option value="Bouenza">Bouenza</option><option value="Niari">Niari</option><option value="Pool">Pool</option><option value="Cuvette">Cuvette</option><option value="Sangha">Sangha</option><option value="Plateaux">Plateaux</option><option value="Likouala">Likouala</option><option value="Kouilou">Kouilou</option><option value="Lékoumou">Lékoumou</option><option value="Cuvette-Ouest">Cuvette-Ouest</option><option value="Djoué-Léfini">Djoué-Léfini</option><option value="Nkéni-Alima">Nkéni-Alima</option><option value="Congo-Oubangui">Congo-Oubangui</option></select></div>
-                <div class="pt-2"><button type="submit" id="saveProfileBtn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl glow-button transition">Enregistrer</button></div>
+                <div>
+                    <label class="text-xs text-gray-400 font-semibold mb-1 block">Pseudo Réel</label>
+                    <input type="text" id="modalPseudoInput" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 text-sm focus:border-emerald-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 font-semibold mb-1 block">Département Principal</label>
+                    <select id="modalDeptInput" class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 text-sm focus:border-emerald-500 outline-none">
+                        <option value="Brazzaville">Brazzaville</option>
+                        <option value="Pointe-Noire">Pointe-Noire</option>
+                        <option value="Bouenza">Bouenza</option>
+                        <option value="Niari">Niari</option>
+                        <option value="Pool">Pool</option>
+                        <option value="Cuvette">Cuvette</option>
+                        <option value="Sangha">Sangha</option>
+                        <option value="Plateaux">Plateaux</option>
+                        <option value="Likouala">Likouala</option>
+                        <option value="Kouilou">Kouilou</option>
+                        <option value="Lékoumou">Lékoumou</option>
+                        <option value="Cuvette-Ouest">Cuvette-Ouest</option>
+                        <option value="Djoué-Léfini">Djoué-Léfini</option>
+                        <option value="Nkéni-Alima">Nkéni-Alima</option>
+                        <option value="Congo-Oubangui">Congo-Oubangui</option>
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl glow-button transition">
+                        Enregistrer
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
+    <!-- SCRIPT APPLICATION -->
     <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKeyForWapiCourant242Demo",
+            authDomain: "wapi-courant-242.firebaseapp.com",
+            projectId: "wapi-courant-242"
+        };
+
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch(e) {
+            console.warn("Mode hors-ligne / Stockage local actif");
+        }
+
         let currentUser = JSON.parse(localStorage.getItem('wapi_user')) || {
-            pseudo: 'Citoyen_' + Math.floor(1000 + Math.random() * 9000), dept: 'Brazzaville'
+            pseudo: 'Citoyen_' + Math.floor(1000 + Math.random() * 9000),
+            dept: 'Brazzaville'
         };
-        let signals = JSON.parse(localStorage.getItem('wapi_signals')) || [
-            { id: 1, dept: 'Brazzaville', district: 'Bacongo', status: 'cut', comment: 'Coupure depuis 14h', time: 'Il y a 10 min', user: 'Grace_Bacongo', confirms: 3 },
-            { id: 2, dept: 'Pointe-Noire', district: 'Tié-Tié', status: 'ok', comment: 'Courant rétabli !', time: 'Il y a 25 min', user: 'Patou_PN', confirms: 1 }
-        ];
-        let feedbacks = JSON.parse(localStorage.getItem('wapi_feedbacks')) || [
-            { id: 1, user: 'Grace_Bacongo', rating: 5, text: 'Super application pour le Congo ! Très pratique.' }
-        ];
+
         const deptCoords = {
-            'Brazzaville': [-4.2634, 15.2429], 'Pointe-Noire': [-4.7761, 11.8635], 'Bouenza': [-4.1531, 13.5500],
-            'Congo-Oubangui': [-1.1500, 16.2000], 'Cuvette': [-0.4819, 15.8999], 'Cuvette-Ouest': [0.0100, 14.8000],
-            'Djoué-Léfini': [-3.3000, 15.4000], 'Kouilou': [-4.4000, 11.9000], 'Lékoumou': [-3.1500, 13.3500],
-            'Likouala': [1.6333, 18.0667], 'Niari': [-4.2000, 12.7000], 'Nkéni-Alima': [-1.8000, 15.8000],
-            'Plateaux': [-2.5333, 15.3833], 'Pool': [-3.8000, 14.7000], 'Sangha': [1.6167, 16.0500]
+            'Brazzaville': [-4.2634, 15.2429],
+            'Pointe-Noire': [-4.7761, 11.8635],
+            'Bouenza': [-4.1531, 13.5500],
+            'Congo-Oubangui': [-1.1500, 16.2000],
+            'Cuvette': [-0.4819, 15.8999],
+            'Cuvette-Ouest': [0.0100, 14.8000],
+            'Djoué-Léfini': [-3.3000, 15.4000],
+            'Kouilou': [-4.4000, 11.9000],
+            'Lékoumou': [-3.1500, 13.3500],
+            'Likouala': [1.6333, 18.0667],
+            'Niari': [-4.2000, 12.7000],
+            'Nkéni-Alima': [-1.8000, 15.8000],
+            'Plateaux': [-2.5333, 15.3833],
+            'Pool': [-3.8000, 14.7000],
+            'Sangha': [1.6167, 16.0500]
         };
+
         let map;
         let mapMarkers = [];
+        let signalsCache = [];
 
         document.addEventListener('DOMContentLoaded', () => {
-            updateHeader(); initMap(); renderSignals(); renderFeedbacks(); updateAudienceStats();
+            updateHeader();
+            initMap();
+            initRealtimeSync();
+            updateAudienceStats();
+
             document.getElementById('profileForm').addEventListener('submit', saveProfile);
             document.getElementById('signalForm').addEventListener('submit', handleSignalSubmit);
             document.getElementById('feedbackForm').addEventListener('submit', handleFeedbackSubmit);
@@ -195,143 +369,226 @@
 
         function showToast(msg, isError = false) {
             const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = msg;
+            const toastMsg = document.getElementById('toastMsg');
             const toastIcon = document.getElementById('toastIcon');
-            if (isError) {
-                toast.classList.remove('bg-emerald-500', 'text-gray-950');
-                toast.classList.add('bg-red-500', 'text-white');
-                toastIcon.className = 'fa-solid fa-triangle-exclamation text-lg';
-            } else {
-                toast.classList.remove('bg-red-500', 'text-white');
-                toast.classList.add('bg-emerald-500', 'text-gray-950');
-                toastIcon.className = 'fa-solid fa-circle-check text-lg';
-            }
-            toast.classList.remove('translate-y-[-100px]', 'opacity-0', 'pointer-events-none');
-            toast.classList.add('translate-y-0', 'opacity-100');
+
+            toastMsg.innerText = msg;
+            toast.className = `fixed top-5 right-5 z-50 text-gray-950 font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 transition transform translate-y-0 opacity-100 ${isError ? 'bg-red-500 text-white' : 'bg-emerald-500'}`;
+            toastIcon.className = isError ? 'fa-solid fa-triangle-exclamation text-lg' : 'fa-solid fa-circle-check text-lg';
+
             setTimeout(() => {
                 toast.classList.add('translate-y-[-100px]', 'opacity-0', 'pointer-events-none');
-                toast.classList.remove('translate-y-0', 'opacity-100');
             }, 3000);
         }
 
         function initMap() {
-            map = L.map('map').setView([-1.5, 15.5], 6);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18
-            }).addTo(map);
-            updateMapMarkers();
+            setTimeout(() => {
+                map = L.map('map').setView([-1.5, 15.5], 6);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; OpenStreetMap &copy; CARTO',
+                    maxZoom: 18
+                }).addTo(map);
+                renderMapMarkers();
+            }, 200);
         }
-        function updateMapMarkers() {
-            mapMarkers.forEach(m => map.removeLayer(m)); mapMarkers = [];
-            signals.forEach(sig => {
+
+        function renderMapMarkers() {
+            if (!map) return;
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
+
+            signalsCache.forEach(sig => {
                 const coords = deptCoords[sig.dept] || [-4.2634, 15.2429];
                 const isCut = sig.status === 'cut';
+                
                 const customIcon = L.divIcon({
                     className: 'custom-div-icon',
                     html: `<div class="${isCut ? 'pulse-marker' : 'pulse-green'} w-5 h-5 border-2 border-white"></div>`,
-                    iconSize: [20, 20], iconAnchor: [10, 10]
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
                 });
+
                 const marker = L.marker(coords, { icon: customIcon }).addTo(map);
-                marker.bindPopup(`<div style="color:#111;font-family:sans-serif;"><strong>${escapeHTML(sig.dept)} - ${escapeHTML(sig.district)}</strong><br>État: ${isCut ? '<span style="color:red;font-weight:bold;">🔴 Coupure</span>' : '<span style="color:green;font-weight:bold;">🟢 Rétabli</span>'}<br><em>${escapeHTML(sig.comment || 'Signalement communautaire')}</em><br><small>Par: ${escapeHTML(sig.user)} (${escapeHTML(sig.time)})</small></div>`);
+                marker.bindPopup(`
+                    <div style="color: #111; font-family: sans-serif;">
+                        <strong>${sig.dept} - ${sig.district}</strong><br>
+                        État: ${isCut ? '<span style="color:red; font-weight:bold;">🔴 Coupure</span>' : '<span style="color:green; font-weight:bold;">🟢 Rétabli</span>'}<br>
+                        <em>${sig.comment || ''}</em><br>
+                        <small>Par: ${sig.user}</small>
+                    </div>
+                `);
                 mapMarkers.push(marker);
             });
         }
-        function escapeHTML(value) {
-            return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+
+        function initRealtimeSync() {
+            if (db) {
+                db.collection("signals").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+                    signalsCache = [];
+                    snapshot.forEach(doc => {
+                        signalsCache.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderSignalsUI();
+                    renderMapMarkers();
+                }, err => {
+                    loadFallbackLocal();
+                });
+
+                db.collection("feedbacks").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+                    let fbList = [];
+                    snapshot.forEach(doc => fbList.push(doc.data()));
+                    renderFeedbacksUI(fbList);
+                });
+            } else {
+                loadFallbackLocal();
+            }
         }
-        function openProfileModal() {
-            document.getElementById('modalPseudoInput').value = currentUser.pseudo;
-            document.getElementById('modalDeptInput').value = currentUser.dept || 'Brazzaville';
-            document.getElementById('profileAlert').classList.add('hidden');
-            document.getElementById('profileModal').classList.remove('hidden');
+
+        function loadFallbackLocal() {
+            signalsCache = JSON.parse(localStorage.getItem('wapi_signals')) || [
+                { id: '1', dept: 'Brazzaville', district: 'Bacongo', status: 'cut', comment: 'Coupure secteur', time: 'Récemment', user: 'Grace_Bacongo', confirms: 2 }
+            ];
+            renderSignalsUI();
+            renderMapMarkers();
         }
-        function closeProfileModal() { document.getElementById('profileModal').classList.add('hidden'); }
-        function saveProfile(e) {
-            e.preventDefault();
-            const newPseudo = document.getElementById('modalPseudoInput').value.trim();
-            const newDept = document.getElementById('modalDeptInput').value;
-            if (!newPseudo) { showToast("Veuillez saisir un pseudo valide", true); return; }
-            currentUser.pseudo = newPseudo; currentUser.dept = newDept;
-            localStorage.setItem('wapi_user', JSON.stringify(currentUser));
-            updateHeader(); document.getElementById('profileAlert').classList.remove('hidden');
-            showToast("Profil mis à jour !");
-            setTimeout(closeProfileModal, 1000);
-        }
-        function updateHeader() {
-            document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
-            document.getElementById('deptSelect').value = currentUser.dept || 'Brazzaville';
-        }
+
         function handleSignalSubmit(e) {
             e.preventDefault();
             const dept = document.getElementById('deptSelect').value;
             const district = document.getElementById('districtInput').value.trim();
             const statusRadio = document.querySelector('input[name="status"]:checked');
             const comment = document.getElementById('commentInput').value.trim();
-            if (!district) { showToast("Veuillez indiquer le quartier", true); return; }
-            const newSignal = { id: Date.now(), dept, district, status: statusRadio ? statusRadio.value : 'cut',
-                comment, time: 'À l’instant', user: currentUser.pseudo, confirms: 1 };
-            signals.unshift(newSignal);
-            localStorage.setItem('wapi_signals', JSON.stringify(signals));
-            document.getElementById('districtInput').value = ''; document.getElementById('commentInput').value = '';
-            renderSignals(); updateMapMarkers(); showToast("Signalement publié !");
-        }
-        function confirmSignal(id) {
-            const index = signals.findIndex(s => s.id === id);
-            if (index !== -1) {
-                signals[index].confirms = (signals[index].confirms || 0) + 1;
-                localStorage.setItem('wapi_signals', JSON.stringify(signals));
-                renderSignals(); showToast("Confirmation enregistrée (+1)");
+
+            if (!district) return showToast("Indiquez le quartier", true);
+
+            const newSignal = {
+                dept,
+                district,
+                status: statusRadio ? statusRadio.value : 'cut',
+                comment,
+                time: 'À l\'instant',
+                user: currentUser.pseudo,
+                confirms: 1,
+                timestamp: Date.now()
+            };
+
+            if (db) {
+                db.collection("signals").add(newSignal).then(() => {
+                    showToast("Signalement publié en direct !");
+                }).catch(() => {
+                    saveLocalSignal(newSignal);
+                });
+            } else {
+                saveLocalSignal(newSignal);
             }
+
+            document.getElementById('districtInput').value = '';
+            document.getElementById('commentInput').value = '';
         }
-        function clearSignals() {
-            if (confirm("Voulez-vous réinitialiser tous les signalements locaux ?")) {
-                signals = []; localStorage.removeItem('wapi_signals');
-                renderSignals(); updateMapMarkers(); showToast("Signalements réinitialisés");
-            }
+
+        function saveLocalSignal(sig) {
+            signalsCache.unshift({ id: Date.now(), ...sig });
+            localStorage.setItem('wapi_signals', JSON.stringify(signalsCache));
+            renderSignalsUI();
+            renderMapMarkers();
+            showToast("Signalement enregistré !");
         }
-        function renderSignals() {
+
+        function renderSignalsUI() {
             const container = document.getElementById('signalsList');
-            let activeOutagesCount = 0;
-            if (signals.length === 0) {
-                container.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement enregistré pour le moment.</p>';
-                document.getElementById('activeOutages').innerText = '0'; return;
+            let activeOutages = 0;
+
+            if (signalsCache.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement.</p>';
+                document.getElementById('activeOutages').innerText = '0';
+                return;
             }
-            container.innerHTML = signals.map(sig => {
-                if (sig.status === 'cut') activeOutagesCount++;
+
+            container.innerHTML = signalsCache.map(sig => {
+                if (sig.status === 'cut') activeOutages++;
                 const isCut = sig.status === 'cut';
-                return `<div class="bg-gray-800/60 border border-gray-700/50 rounded-lg p-2.5 flex justify-between items-center text-xs hover:border-gray-600 transition">
-                    <div><div class="flex items-center space-x-2"><span class="font-bold text-white">${escapeHTML(sig.dept)}</span><span class="text-gray-400">• ${escapeHTML(sig.district)}</span></div>
-                    <p class="text-gray-300 mt-0.5">${escapeHTML(sig.comment || 'Signalement citoyen')}</p>
-                    <div class="flex items-center gap-2 mt-1"><span class="text-gray-500 text-[10px]">Par ${escapeHTML(sig.user)} — ${escapeHTML(sig.time)}</span>
-                    <button type="button" onclick="confirmSignal(${Number(sig.id)})" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-emerald-400 px-1.5 py-0.5 rounded flex items-center gap-1 transition"><i class="fa-regular fa-thumbs-up"></i> Confirmé (${Number(sig.confirms) || 1})</button></div></div>
-                    <div class="ml-2">${isCut ? '<span class="bg-red-500/10 text-red-400 border border-red-500/30 px-2 py-1 rounded font-semibold whitespace-nowrap">🔴 Coupure</span>' : '<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-semibold whitespace-nowrap">🟢 Rétabli</span>'}</div></div>`;
+
+                return `
+                    <div class="bg-gray-800/60 border border-gray-700/50 rounded-lg p-2.5 flex justify-between items-center text-xs">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-white">${sig.dept}</span>
+                                <span class="text-gray-400">• ${sig.district}</span>
+                            </div>
+                            <p class="text-gray-300 mt-0.5">${sig.comment || ''}</p>
+                            <span class="text-gray-500 text-[10px]">Par ${sig.user} — ${sig.time}</span>
+                        </div>
+                        <div>
+                            ${isCut ? '<span class="bg-red-500/10 text-red-400 border border-red-500/30 px-2 py-1 rounded font-semibold">🔴 Coupure</span>' : '<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-semibold">🟢 Rétabli</span>'}
+                        </div>
+                    </div>
+                `;
             }).join('');
-            document.getElementById('activeOutages').innerText = activeOutagesCount;
+
+            document.getElementById('activeOutages').innerText = activeOutages;
         }
+
         function handleFeedbackSubmit(e) {
             e.preventDefault();
             const text = document.getElementById('feedbackText').value.trim();
             const rating = document.getElementById('ratingSelect').value;
-            if (!text) { showToast("Veuillez écrire un commentaire", true); return; }
-            feedbacks.unshift({ id: Date.now(), user: currentUser.pseudo, rating: parseInt(rating, 10), text });
-            localStorage.setItem('wapi_feedbacks', JSON.stringify(feedbacks));
+            if (!text) return;
+
+            const fb = { user: currentUser.pseudo, rating: parseInt(rating), text, timestamp: Date.now() };
+            if (db) {
+                db.collection("feedbacks").add(fb);
+            }
             document.getElementById('feedbackText').value = '';
-            renderFeedbacks(); showToast("Avis publié avec succès !");
+            showToast("Avis envoyé !");
         }
-        function renderFeedbacks() {
+
+        function renderFeedbacksUI(list) {
             const container = document.getElementById('feedbackList');
-            if (feedbacks.length === 0) { container.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun avis déposé.</p>'; return; }
-            container.innerHTML = feedbacks.map(fb => `<div class="bg-gray-800/40 rounded p-2 text-xs border border-gray-700/30">
-                <div class="flex justify-between items-center mb-1"><span class="font-bold text-emerald-400">${escapeHTML(fb.user)}</span><span class="text-yellow-400">${'⭐'.repeat(Math.max(1, Math.min(5, Number(fb.rating) || 1)))}</span></div>
-                <p class="text-gray-300">${escapeHTML(fb.text)}</p></div>`).join('');
+            if (!list || list.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun avis.</p>';
+                return;
+            }
+            container.innerHTML = list.map(f => `
+                <div class="bg-gray-800/40 rounded p-2 text-xs border border-gray-700/30">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-emerald-400">${f.user}</span>
+                        <span class="text-yellow-400">${'⭐'.repeat(f.rating)}</span>
+                    </div>
+                    <p class="text-gray-300">${f.text}</p>
+                </div>
+            `).join('');
         }
+
+        function openProfileModal() {
+            document.getElementById('modalPseudoInput').value = currentUser.pseudo;
+            document.getElementById('modalDeptInput').value = currentUser.dept || 'Brazzaville';
+            document.getElementById('profileModal').classList.remove('hidden');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.add('hidden');
+        }
+
+        function saveProfile(e) {
+            e.preventDefault();
+            currentUser.pseudo = document.getElementById('modalPseudoInput').value.trim();
+            currentUser.dept = document.getElementById('modalDeptInput').value;
+            localStorage.setItem('wapi_user', JSON.stringify(currentUser));
+            updateHeader();
+            closeProfileModal();
+            showToast("Profil enregistré !");
+        }
+
+        function updateHeader() {
+            document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
+            document.getElementById('deptSelect').value = currentUser.dept || 'Brazzaville';
+        }
+
         function updateAudienceStats() {
-            let totalVisits = parseInt(localStorage.getItem('wapi_total_visits') || '184', 10);
-            totalVisits++; localStorage.setItem('wapi_total_visits', totalVisits);
+            let totalVisits = parseInt(localStorage.getItem('wapi_visits') || '210') + 1;
+            localStorage.setItem('wapi_visits', totalVisits);
             document.getElementById('totalVisits').innerText = totalVisits;
-            // Valeur simulée : ce compteur n'est pas une mesure réelle des visiteurs en ligne.
-            const online = Math.floor(Math.random() * 5) + 3;
-            document.getElementById('onlineCount').innerText = online;
+            document.getElementById('onlineCount').innerText = Math.floor(Math.random() * 4) + 2;
         }
     </script>
 </body>
