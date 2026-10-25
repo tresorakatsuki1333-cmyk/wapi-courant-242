@@ -23,14 +23,9 @@
             color: #e2e8f0;
             font-family: system-ui, -apple-system, sans-serif;
         }
-        #map-container {
-            position: relative;
-            width: 100%;
-            height: 420px;
-        }
         #map {
-            width: 100% !important;
-            height: 420px !important;
+            width: 100%;
+            height: 400px;
             border-radius: 12px;
             z-index: 10;
         }
@@ -54,12 +49,9 @@
             70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
-        .glow-button {
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
-        }
     </style>
 </head>
-<body class="p-2 md:p-6 min-h-screen flex flex-col justify-between">
+<body class="p-3 md:p-6 min-h-screen flex flex-col justify-between space-y-6">
 
     <div class="max-w-6xl mx-auto w-full space-y-6">
 
@@ -82,26 +74,26 @@
             </button>
         </header>
 
-        <!-- SONDAGE ÉCLAIR COMMUNAUTAIRE -->
+        <!-- SONDAGE ÉCLAIR -->
         <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center space-x-3">
                 <div class="text-2xl">📊</div>
                 <div>
                     <h2 class="text-sm font-bold text-white">Tendance du Réseau en Direct</h2>
-                    <p class="text-xs text-gray-400">Exprimez-vous en un clic : comment est la situation chez vous ?</p>
+                    <p class="text-xs text-gray-400">Comment est la situation chez vous en ce moment ?</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 w-full md:w-auto">
-                <button onclick="castVote('cut')" class="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
-                    <span>🔴 Coupure (<span id="voteCutCount">0</span>)</span>
+                <button onclick="castVote('cut')" class="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-2 rounded-xl text-xs font-bold transition">
+                    🔴 Coupure (<span id="voteCutCount">0</span>)
                 </button>
-                <button onclick="castVote('ok')" class="flex-1 md:flex-none bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
-                    <span>🟢 Du Courant (<span id="voteOkCount">0</span>)</span>
+                <button onclick="castVote('ok')" class="flex-1 md:flex-none bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-xs font-bold transition">
+                    🟢 Du Courant (<span id="voteOkCount">0</span>)
                 </button>
             </div>
         </div>
 
-        <!-- CARTE & FORMULAIRE -->
+        <!-- CARTE & FORMULAIRE DE SIGNALEMENT -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
                 <div class="flex justify-between items-center mb-3">
@@ -109,12 +101,10 @@
                         <i class="fa-solid fa-map-location-dot text-emerald-400 mr-2"></i> Carte des Pannes en Direct
                     </h2>
                     <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                        ☁️ Synchronisé Firestore
+                        ☁️ Firestore Live
                     </span>
                 </div>
-                <div id="map-container">
-                    <div id="map"></div>
-                </div>
+                <div id="map"></div>
             </div>
 
             <!-- FORMULAIRE SIGNALEMENT -->
@@ -166,27 +156,27 @@
 
                     <div>
                         <label class="text-xs text-gray-400 font-semibold mb-1 block">Commentaire</label>
-                        <input type="text" id="commentInput" placeholder="Précisez l'heure ou la situation..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm outline-none">
+                        <input type="text" id="commentInput" placeholder="Précisez l'heure..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm outline-none">
                     </div>
 
-                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl glow-button transition">
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl transition">
                         Publier sur le Réseau
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- ZONE DE CHAT CITOYEN & LISTE DES PANNES -->
+        <!-- ZONE DE CHAT INDÉPENDANTE & DERNIERS SIGNALEMENTS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- CHAT CITOYEN -->
+            <!-- CHAT CITOYEN (HORS SIGNALEMENT) -->
             <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col h-80">
                 <h3 class="text-md font-bold text-gray-200 mb-2 flex items-center justify-between">
-                    <span><i class="fa-solid fa-comments text-emerald-400 mr-2"></i> Chat des Citoyens</span>
-                    <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">En direct</span>
+                    <span><i class="fa-solid fa-comments text-emerald-400 mr-2"></i> Chat Général des Citoyens</span>
+                    <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">Discussions libres</span>
                 </h3>
                 <div id="chatMessages" class="flex-1 bg-gray-950/50 border border-gray-800 rounded-lg p-3 overflow-y-auto space-y-2 mb-3 text-xs"></div>
                 <form id="chatForm" class="flex gap-2">
-                    <input type="text" id="chatInput" placeholder="Échangez avec les citoyens..." required class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-xs outline-none">
+                    <input type="text" id="chatInput" placeholder="Échangez librement ici..." required class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-xs outline-none">
                     <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold px-4 py-2 rounded-lg text-xs transition">Envoyer</button>
                 </form>
             </div>
@@ -194,7 +184,7 @@
             <!-- DERNIERS SIGNALEMENTS -->
             <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col h-80">
                 <h3 class="text-md font-bold text-gray-200 mb-2 flex items-center justify-between">
-                    <span><i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Derniers Signalements</span>
+                    <span><i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Fil des Pannes</span>
                 </h3>
                 <div id="signalsList" class="flex-1 bg-gray-950/50 border border-gray-800 rounded-lg p-3 overflow-y-auto space-y-2 text-xs"></div>
             </div>
@@ -244,8 +234,7 @@
         const db = firebase.firestore();
 
         let currentUser = JSON.parse(localStorage.getItem('wapi_user')) || {
-            pseudo: 'Citoyen_' + Math.floor(1000 + Math.random() * 9000),
-            dept: 'Brazzaville'
+            pseudo: 'Citoyen_' + Math.floor(1000 + Math.random() * 9000)
         };
 
         const deptCoords = {
@@ -268,7 +257,6 @@
 
         let map = null;
         let mapMarkers = [];
-        let signals = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
@@ -283,25 +271,53 @@
         });
 
         function initMap() {
+            if (map) return;
             map = L.map('map').setView([-1.5, 15.5], 6);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
-            setTimeout(() => { map.invalidateSize(); }, 200);
-            setTimeout(() => { map.invalidateSize(); }, 600);
-            setTimeout(() => { map.invalidateSize(); }, 1200);
+            setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
         function listenSignalsCloud() {
             db.collection("signals").orderBy("timestamp", "desc").onSnapshot(snapshot => {
-                signals = [];
-                snapshot.forEach(doc => {
-                    signals.push({ id: doc.id, ...doc.data() });
-                });
-                renderAll();
-            }, error => {
-                console.error("Erreur Firestore signals : ", error);
+                const signals = [];
+                snapshot.forEach(doc => signals.push({ id: doc.id, ...doc.data() }));
+                
+                if (map) {
+                    mapMarkers.forEach(m => map.removeLayer(m));
+                    mapMarkers = [];
+                    signals.forEach(sig => {
+                        const coords = deptCoords[sig.dept] || [-4.2634, 15.2429];
+                        const icon = L.divIcon({
+                            className: 'custom-icon',
+                            html: `<div class="${sig.status === 'cut' ? 'pulse-marker' : 'pulse-green'} w-5 h-5 border-2 border-white"></div>`
+                        });
+                        const marker = L.marker(coords, { icon }).addTo(map);
+                        marker.bindPopup(`<b>${sig.dept} - ${sig.district}</b><br>${sig.comment || ''}<br><small>Par: ${sig.user}</small>`);
+                        mapMarkers.push(marker);
+                    });
+                }
+
+                const list = document.getElementById('signalsList');
+                if (signals.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement...</p>';
+                    return;
+                }
+
+                list.innerHTML = signals.map(s => `
+                    <div class="bg-gray-800/60 p-2 rounded flex justify-between items-center">
+                        <div>
+                            <strong class="text-white">${s.dept} (${s.district})</strong>
+                            <p class="text-gray-300">${s.comment || 'Panne électricité'}</p>
+                            <span class="text-gray-500 text-[10px]">Par ${s.user}</span>
+                        </div>
+                        <span class="${s.status === 'cut' ? 'text-red-400 bg-red-500/10' : 'text-emerald-400 bg-emerald-500/10'} px-2 py-1 rounded font-bold">
+                            ${s.status === 'cut' ? '🔴 Coupure' : '🟢 Rétabli'}
+                        </span>
+                    </div>
+                `).join('');
             });
         }
 
@@ -315,8 +331,7 @@
 
         function listenVotesCloud() {
             db.collection("votes").onSnapshot(snapshot => {
-                let cutCount = 0;
-                let okCount = 0;
+                let cutCount = 0, okCount = 0;
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     if (data.status === 'cut') cutCount++;
@@ -340,7 +355,7 @@
                         </div>
                     `;
                 });
-                chatContainer.innerHTML = html || '<p class="text-gray-500 italic">Aucun message pour l'instant...</p>';
+                chatContainer.innerHTML = html || '<p class="text-gray-500 italic">Démarrez la discussion ici...</p>';
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             });
         }
@@ -355,9 +370,7 @@
                 user: currentUser.pseudo,
                 text: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                input.value = '';
-            });
+            }).then(() => { input.value = ''; });
         }
 
         function sendSignal(e) {
@@ -377,51 +390,14 @@
             });
         }
 
-        function renderAll() {
-            if (map) {
-                mapMarkers.forEach(m => map.removeLayer(m));
-                mapMarkers = [];
-
-                signals.forEach(sig => {
-                    const coords = deptCoords[sig.dept] || [-4.2634, 15.2429];
-                    const icon = L.divIcon({
-                        className: 'custom-icon',
-                        html: `<div class="${sig.status === 'cut' ? 'pulse-marker' : 'pulse-green'} w-5 h-5 border-2 border-white"></div>`
-                    });
-                    const marker = L.marker(coords, { icon }).addTo(map);
-                    marker.bindPopup(`<b>${sig.dept} - ${sig.district}</b><br>${sig.comment || ''}<br><small>Par: ${sig.user}</small>`);
-                    mapMarkers.push(marker);
-                });
-            }
-
-            const list = document.getElementById('signalsList');
-            if (signals.length === 0) {
-                list.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement pour le moment.</p>';
-                return;
-            }
-
-            list.innerHTML = signals.map(s => `
-                <div class="bg-gray-800/60 p-2 rounded flex justify-between items-center">
-                    <div>
-                        <strong class="text-white">${s.dept} (${s.district})</strong>
-                        <p class="text-gray-300">${s.comment || 'Panne électricité'}</p>
-                        <span class="text-gray-500 text-[10px]">Par ${s.user}</span>
-                    </div>
-                    <span class="${s.status === 'cut' ? 'text-red-400 bg-red-500/10' : 'text-emerald-400 bg-emerald-500/10'} px-2 py-1 rounded font-bold">
-                        ${s.status === 'cut' ? '🔴 Coupure' : '🟢 Rétabli'}
-                    </span>
-                </div>
-            `).join('');
-        }
-
         function openProfileModal() {
             document.getElementById('modalPseudoInput').value = currentUser.pseudo;
             document.getElementById('profileModal').classList.remove('hidden');
         }
 
         function closeProfileModal() {
-            document.getElementById('profileModal'].classList.add('hidden');
-            setTimeout(() => { if(map) map.invalidateSize(); }, 100);
+            document.getElementById('profileModal').classList.add('hidden');
+            if (map) setTimeout(() => { map.invalidateSize(); }, 150);
         }
 
         function saveProfile(e) {
