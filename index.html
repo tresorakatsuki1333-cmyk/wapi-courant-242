@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wapi Courant 242 ⚡ - Congo</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#111827',
+                            950: '#030712'
+                        },
+                        brand: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0b1329; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        #leaflet-map { height: 100%; min-height: 480px; border-radius: 1rem; z-index: 10; }
+        .leaflet-container { background: #090d16 !important; font-family: inherit; }
+        .leaflet-popup-content-wrapper { background: #0f172a; color: #f8fafc; border: 1px solid #334155; border-radius: 14px; padding: 4px; }
+        .leaflet-popup-tip { background: #0f172a; border: 1px solid #334155; }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-status { animation: pulse-ring 2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased custom-scrollbar">
+
+    <!-- OVERLAY 1: SECURITY PIN LOCK SCREEN -->
+    <div id="pin-lock-screen" class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-[100] hidden flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-sm w-full text-center space-y-5 shadow-2xl relative">
+            <div class="w-16 h-16 bg-amber-400/10 text-amber-400 rounded-full flex items-center justify-center mx-auto border border-amber-400/20">
+                <i data-lucide="shield-lock" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-black text-white">Wapi Courant 242</h2>
+                <p class="text-xs text-slate-400 mt-1">Saisissez votre code PIN à 4 chiffres pour accéder</p>
+            </div>
+            <div class="flex justify-center">
+                <input type="password" maxlength="4" id="pin-input" placeholder="••••" class="w-40 text-center text-3xl tracking-[0.4em] bg-slate-950 border border-slate-800 rounded-2xl py-3 text-amber-400 font-bold focus:outline-none focus:border-amber-400 transition">
+            </div>
+            <button onclick="unlockAppWithPIN()" class="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold py-3.5 rounded-xl transition text-sm shadow-lg shadow-amber-400/20">
+                Déverrouiller
+            </button>
+            <p id="pin-error-msg" class="text-xs text-red-400 font-semibold hidden">Code PIN incorrect !</p>
+        </div>
+    </div>
+
+    <!-- MAIN APP HEADER -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-amber-400 p-2.5 rounded-2xl text-slate-950 font-black text-xl flex items-center justify-center shadow-lg shadow-amber-400/20">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                        Wapi Courant 242 <span class="text-[10px] font-bold bg-amber-400/10 text-amber-400 px-2.5 py-0.5 rounded-full border border-amber-400/20 uppercase tracking-wide">🇨🇬 Congo (15 Dépts)</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Observatoire collaboratif & Chat communautaire en direct</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- Admin Status Toggle -->
+                <button id="admin-mode-badge" onclick="toggleAdminLogin()" class="hidden bg-red-950/60 border border-red-500/40 text-red-400 text-xs px-2.5 py-1.5 rounded-xl font-bold items-center gap-1">
+                    <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> Admin
+                </button>
+
+                <!-- Quick Lock Button -->
+                <button onclick="lockAppManual()" title="Verrouiller l'application" class="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 p-2 rounded-xl transition">
+                    <i data-lucide="lock" class="w-4 h-4 text-amber-400"></i>
+                </button>
+
+                <!-- Security & Export Modal -->
+                <button onclick="openModal('modal-security')" title="Sécurité & Exportation" class="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition text-slate-200">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="hidden md:inline font-bold">Sécurité & Data</span>
+                </button>
+
+                <!-- Profile Customizer Button -->
+                <button onclick="openModal('modal-profile')" class="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs px-3 py-2 rounded-xl flex items-center gap-2 transition">
+                    <span id="user-avatar-badge" class="w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-extrabold flex items-center justify-center text-[10px]">C</span>
+                    <span id="user-pseudo-badge" class="font-bold text-slate-200 hidden sm:inline">Citoyen242</span>
+                    <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400"></i>
+                </button>
+
+                <!-- Submit New Report Button -->
+                <button onclick="openModal('modal-report')" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95 transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Signaler</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-5 w-full space-y-5">
+
+        <!-- GLOBAL STATS SUMMARY METRICS -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div onclick="setFilterStatus('ALL')" class="cursor-pointer bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3.5 rounded-2xl shadow-lg transition">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-400 font-medium">Zones Répertoriées</span>
+                    <i data-lucide="map-pin" class="w-4 h-4 text-slate-500"></i>
+                </div>
+                <span class="block text-2xl font-black text-white" id="count-total">0</span>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider">Tous signalements</span>
+            </div>
+
+            <div onclick="setFilterStatus('OK')" class="cursor-pointer bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-500/20 p-3.5 rounded-2xl shadow-lg transition">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-emerald-300/80 font-medium">Électricité OK</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-status"></span>
+                </div>
+                <span class="block text-2xl font-black text-emerald-400" id="count-ok">0</span>
+                <span class="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">🟢 Service Normal</span>
+            </div>
+
+            <div onclick="setFilterStatus('INSTABLE')" class="cursor-pointer bg-amber-950/30 hover:bg-amber-950/50 border border-amber-500/20 p-3.5 rounded-2xl shadow-lg transition">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-amber-300/80 font-medium">Instable / Perturbé</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 pulse-status"></span>
+                </div>
+                <span class="block text-2xl font-black text-amber-400" id="count-instable">0</span>
+                <span class="text-[10px] text-amber-300 font-bold uppercase tracking-wider">🟡 Sous-tension</span>
+            </div>
+
+            <div onclick="setFilterStatus('COUPURE')" class="cursor-pointer bg-red-950/30 hover:bg-red-950/50 border border-red-500/20 p-3.5 rounded-2xl shadow-lg transition">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-red-300/80 font-medium">Coupures Générales</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-status"></span>
+                </div>
+                <span class="block text-2xl font-black text-red-400" id="count-coupure">0</span>
+                <span class="text-[10px] text-red-300 font-bold uppercase tracking-wider">🔴 Noir Total</span>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="flex border-b border-slate-800 overflow-x-auto custom-scrollbar">
+            <button id="tab-btn-map" onclick="switchTab('map')" class="tab-btn py-3 px-5 text-center text-sm font-bold border-b-2 border-amber-400 text-amber-400 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="map" class="w-4 h-4"></i> Carte Interactive 🗺️
+            </button>
+            <button id="tab-btn-chat" onclick="switchTab('chat')" class="tab-btn py-3 px-5 text-center text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="message-square" class="w-4 h-4"></i> Chat Communautaire 💬
+            </button>
+            <button id="tab-btn-list" onclick="switchTab('list')" class="tab-btn py-3 px-5 text-center text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="list" class="w-4 h-4"></i> Signalements par Quartier
+            </button>
+            <button id="tab-btn-stats" onclick="switchTab('stats')" class="tab-btn py-3 px-5 text-center text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Statistiques & Analyse
+            </button>
+        </div>
+
+        <!-- TAB 1: INTERACTIVE MAP VIEW -->
+        <section id="tab-content-map" class="tab-content space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 p-3.5 rounded-2xl shadow-lg flex flex-col justify-between">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 px-2">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                                <i data-lucide="map-pin" class="w-5 h-5 text-amber-400"></i> Carte en Direct des 15 Départements du Congo
+                            </h2>
+                            <p class="text-xs text-slate-400">Cliquez sur un département pour visualiser les détails ou publier un signalement.</p>
+                        </div>
+                    </div>
+                    <div id="leaflet-map" class="w-full"></div>
+                </div>
+
+                <!-- Department Quick Directory -->
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-100 text-sm mb-3 flex items-center gap-2 border-b border-slate-800 pb-2">
+                            <i data-lucide="building-2" class="w-4 h-4 text-amber-400"></i> 15 Départements & Chefs-lieux
+                        </h3>
+                        <div class="space-y-2 max-h-[440px] overflow-y-auto custom-scrollbar pr-1" id="map-dept-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: LIVE MULTI-ROOM CHAT -->
+        <section id="tab-content-chat" class="tab-content hidden space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-[620px]">
+                <!-- Chat Rooms Sidebar -->
+                <div class="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between overflow-hidden">
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-2 flex items-center justify-between">
+                            <span>16 Salons Régionaux</span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        </h3>
+                        <div class="space-y-1 max-h-[480px] overflow-y-auto custom-scrollbar pr-1" id="chat-rooms-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Display & Controls -->
+                <div class="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden">
+                    <div class="px-4 py-3 bg-slate-950/70 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl" id="current-room-icon">💬</span>
+                            <div>
+                                <h3 class="font-bold text-sm text-slate-100" id="current-room-title">Salon Général - Congo 242</h3>
+                                <p class="text-[11px] text-slate-400" id="current-room-subtitle">Canal principal d'échange citoyen</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="exportChatText()" class="text-xs bg-slate-800 hover:bg-slate-750 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition">
+                                <i data-lucide="download" class="w-3.5 h-3.5 text-amber-400"></i> Exporter Chat (.txt)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages Stream -->
+                    <div id="chat-messages-container" class="flex-grow p-4 overflow-y-auto space-y-3.5 custom-scrollbar bg-slate-950/40 max-h-[440px]">
+                        <!-- Messages dynamically rendered -->
+                    </div>
+
+                    <!-- Chat Input Form -->
+                    <form id="chat-form" onsubmit="sendChatMessage(event)" class="p-3 bg-slate-900 border-t border-slate-800 space-y-2">
+                        <div id="chat-media-preview-container" class="hidden flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800">
+                            <div id="chat-image-preview-box" class="hidden relative">
+                                <img id="chat-image-preview" src="" class="h-16 rounded-lg border border-slate-700 object-cover">
+                                <button type="button" onclick="clearChatImage()" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 shadow">
+                                    <i data-lucide="x" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                            <div id="chat-audio-preview-box" class="hidden flex items-center gap-2 text-xs text-amber-400 bg-amber-400/10 p-2 rounded-lg border border-amber-400/20">
+                                <i data-lucide="mic" class="w-4 h-4 animate-pulse"></i>
+                                <span id="audio-preview-status">Audio prêt</span>
+                                <button type="button" onclick="clearChatAudio()" class="text-red-400 hover:underline text-[11px] font-bold ml-2">Supprimer</button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="chat-tag-status" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-2 focus:outline-none focus:border-amber-400">
+                                <option value="">💬 Message classique</option>
+                                <option value="🟢 Courant rétabli">🟢 Courant rétabli</option>
+                                <option value="🔴 Signalement Coupure">🔴 Signalement Coupure</option>
+                                <option value="🟡 Baisse de tension">🟡 Baisse de tension</option>
+                                <option value="⚡ Info Directe">⚡ Info Directe</option>
+                            </select>
+
+                            <!-- Live Audio Recorder Button -->
+                            <button type="button" id="record-audio-btn" onclick="toggleAudioRecording()" class="bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-red-400 border border-slate-800 px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
+                                <i data-lucide="mic" class="w-4 h-4 text-red-400"></i>
+                                <span id="record-btn-text">Vocal</span>
+                            </button>
+
+                            <label class="cursor-pointer bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-amber-400 border border-slate-800 px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
+                                <i data-lucide="camera" class="w-4 h-4 text-amber-400"></i> Photo
+                                <input type="file" id="chat-file-input" accept="image/*" onchange="previewChatImage(event)" class="hidden">
+                            </label>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="chat-input-text" placeholder="Écrivez votre message..." class="flex-grow bg-slate-950 border border-slate-800 text-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-400 transition">
+                            <button type="submit" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-1.5 transition shadow-lg shadow-amber-400/10 active:scale-95">
+                                <span>Envoyer</span>
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: SIGNALEMENTS LISTING -->
+        <section id="tab-content-list" class="tab-content hidden space-y-4">
+            <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl flex flex-col md:flex-row gap-3 items-center justify-between shadow-lg">
+                <div class="relative w-full md:w-80">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="Rechercher quartier, zone ou chef-lieu..." class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-amber-400 transition placeholder-slate-500">
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <select id="dept-filter" onchange="applyFilters()" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                        <option value="ALL">📍 Tous les 15 Départements</option>
+                        <option value="Bouenza">Bouenza — Madingou</option>
+                        <option value="Brazzaville">Brazzaville (capitale)</option>
+                        <option value="Congo-Oubangui">Congo-Oubangui — Mossaka</option>
+                        <option value="Cuvette">Cuvette — Owando</option>
+                        <option value="Cuvette-Ouest">Cuvette-Ouest — Ewo</option>
+                        <option value="Djoué-Léfini">Djoué-Léfini — Odziba</option>
+                        <option value="Kouilou">Kouilou — Madingo-Kayes</option>
+                        <option value="Lékoumou">Lékoumou — Sibiti</option>
+                        <option value="Likouala">Likouala — Impfondo</option>
+                        <option value="Niari">Niari — Dolisie</option>
+                        <option value="Nkéni-Alima">Nkéni-Alima — Gamboma</option>
+                        <option value="Plateaux">Plateaux — Djambala</option>
+                        <option value="Pointe-Noire">Pointe-Noire — Pointe-Noire</option>
+                        <option value="Pool">Pool — Kinkala</option>
+                        <option value="Sangha">Sangha — Ouesso</option>
+                    </select>
+
+                    <select id="status-filter" onchange="applyFilters()" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                        <option value="ALL">⚡ Tous les états</option>
+                        <option value="OK">🟢 Service normal</option>
+                        <option value="INSTABLE">🟡 Tension instable</option>
+                        <option value="COUPURE">🔴 Coupure totale</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="signals-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Cards injected dynamically -->
+            </div>
+        </section>
+
+        <!-- TAB 4: STATISTIQUES & ANALYSES -->
+        <section id="tab-content-stats" class="tab-content hidden space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
+                    <h3 class="font-bold text-slate-100 text-sm mb-4 flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="w-4 h-4 text-amber-400"></i> Proportion Nationale d'Alimentation
+                    </h3>
+                    <div class="w-full h-64 flex items-center justify-center">
+                        <canvas id="chart-pie-status"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
+                    <h3 class="font-bold text-slate-100 text-sm mb-4 flex items-center gap-2">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-400"></i> Zones les Plus Impactées par les Coupures
+                    </h3>
+                    <div class="w-full h-64">
+                        <canvas id="chart-bar-cities"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department Stability Overview Table -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
+                <h3 class="font-bold text-slate-100 text-sm mb-3 flex items-center gap-2">
+                    <i data-lucide="table" class="w-4 h-4 text-amber-400"></i> Bilan Officiel des 15 Chefs-lieux
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="py-3 px-3">Département — Chef-lieu</th>
+                                <th class="py-3 px-3">État en direct</th>
+                                <th class="py-3 px-3">Signalements</th>
+                                <th class="py-3 px-3 text-right">Indice de Stabilité</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-table-body" class="divide-y divide-slate-800">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL 1: NOUVEAU SIGNALEMENT -->
+    <div id="modal-report" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                    <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i> Signaler l'état du courant
+                </h3>
+                <button onclick="closeModal('modal-report')" class="text-slate-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-new-report" onsubmit="submitNewSignal(event)" class="p-5 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Département *</label>
+                        <select id="form-dept" required class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                            <option value="">Sélectionner un département...</option>
+                            <option value="Bouenza">Bouenza — Madingou</option>
+                            <option value="Brazzaville">Brazzaville (capitale)</option>
+                            <option value="Congo-Oubangui">Congo-Oubangui — Mossaka</option>
+                            <option value="Cuvette">Cuvette — Owando</option>
+                            <option value="Cuvette-Ouest">Cuvette-Ouest — Ewo</option>
+                            <option value="Djoué-Léfini">Djoué-Léfini — Odziba</option>
+                            <option value="Kouilou">Kouilou — Madingo-Kayes</option>
+                            <option value="Lékoumou">Lékoumou — Sibiti</option>
+                            <option value="Likouala">Likouala — Impfondo</option>
+                            <option value="Niari">Niari — Dolisie</option>
+                            <option value="Nkéni-Alima">Nkéni-Alima — Gamboma</option>
+                            <option value="Plateaux">Plateaux — Djambala</option>
+                            <option value="Pointe-Noire">Pointe-Noire — Pointe-Noire</option>
+                            <option value="Pool">Pool — Kinkala</option>
+                            <option value="Sangha">Sangha — Ouesso</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Quartier / Avenue *</label>
+                        <input type="text" id="form-neighborhood" required placeholder="Ex: Moungali, Tié-Tié, Grand Marché..." class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">État Électrique *</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="cursor-pointer border border-slate-800 bg-slate-950 p-2.5 rounded-xl flex flex-col items-center text-center hover:border-emerald-500/50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-950/30 transition">
+                            <input type="radio" name="form-status" value="OK" required class="sr-only">
+                            <span class="text-lg mb-1">🟢</span>
+                            <span class="text-xs font-bold text-emerald-400">Normal</span>
+                        </label>
+                        <label class="cursor-pointer border border-slate-800 bg-slate-950 p-2.5 rounded-xl flex flex-col items-center text-center hover:border-amber-500/50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-950/30 transition">
+                            <input type="radio" name="form-status" value="INSTABLE" class="sr-only">
+                            <span class="text-lg mb-1">🟡</span>
+                            <span class="text-xs font-bold text-amber-400">Instable</span>
+                        </label>
+                        <label class="cursor-pointer border border-slate-800 bg-slate-950 p-2.5 rounded-xl flex flex-col items-center text-center hover:border-red-500/50 has-[:checked]:border-red-500 has-[:checked]:bg-red-950/30 transition">
+                            <input type="radio" name="form-status" value="COUPURE" class="sr-only">
+                            <span class="text-lg mb-1">🔴</span>
+                            <span class="text-xs font-bold text-red-400">Coupure</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Durée estimée</label>
+                        <input type="text" id="form-duration" placeholder="Ex: Depuis 2 heures..." class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Détails / Commentaire</label>
+                        <input type="text" id="form-note" placeholder="Transformateur dysfonctionnel..." class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2 border-t border-slate-800">
+                    <button type="button" onclick="closeModal('modal-report')" class="px-4 py-2 bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl">Annuler</button>
+                    <button type="submit" class="px-5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-400/10">Publier Signalement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: USER PROFILE -->
+    <div id="modal-profile" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl shadow-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-white text-base">Profil Citoyen 242</h3>
+                <button onclick="closeModal('modal-profile')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveUserProfile(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Votre Pseudo</label>
+                    <input type="text" id="profile-pseudo" required class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Couleur Badge Avatar</label>
+                    <input type="color" id="profile-color" value="#fbbf24" class="h-10 w-full bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Département d'Origine</label>
+                    <select id="profile-dept" class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-400">
+                        <option value="Brazzaville">Brazzaville</option>
+                        <option value="Pointe-Noire">Pointe-Noire</option>
+                        <option value="Niari">Niari — Dolisie</option>
+                        <option value="Sangha">Sangha — Ouesso</option>
+                        <option value="Cuvette">Cuvette — Owando</option>
+                        <option value="Bouenza">Bouenza — Madingou</option>
+                        <option value="Pool">Pool — Kinkala</option>
+                        <option value="Likouala">Likouala — Impfondo</option>
+                        <option value="Plateaux">Plateaux — Djambala</option>
+                    </select>
+                </div>
+                <div class="pt-2 flex justify-end gap-2 border-t border-slate-800">
+                    <button type="button" onclick="closeModal('modal-profile')" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs rounded-xl">Fermer</button>
+                    <button type="submit" class="px-4 py-2 bg-amber-400 text-slate-950 font-bold text-xs rounded-xl">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ADVANCED SECURITY & DATA MANAGEMENT -->
+    <div id="modal-security" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i> Sécurité & Gestion des Données
+                </h3>
+                <button onclick="closeModal('modal-security')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <!-- PIN Code Lock Configuration -->
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                <h4 class="font-bold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="lock" class="w-4 h-4"></i> Protection par Code PIN
+                </h4>
+                <p class="text-xs text-slate-400">Activez un code PIN à 4 chiffres pour empêcher tout accès non autorisé à l'application.</p>
+                <div class="flex items-center gap-2">
+                    <input type="password" id="security-pin-setting" maxlength="4" placeholder="Code PIN (ex: 1234)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 w-36 focus:outline-none focus:border-amber-400">
+                    <button onclick="savePINSetting()" class="bg-amber-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl">Activer PIN</button>
+                    <button onclick="disablePINSetting()" class="bg-slate-800 text-slate-300 text-xs px-3 py-2 rounded-xl">Désactiver</button>
+                </div>
+            </div>
+
+            <!-- Admin Password Access -->
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                <h4 class="font-bold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="key" class="w-4 h-4"></i> Mode Modération Admin
+                </h4>
+                <p class="text-xs text-slate-400">Entrez le mot de passe maître pour débloquer les privilèges d'administration et de modération.</p>
+                <div class="flex items-center gap-2">
+                    <input type="password" id="admin-password-input" placeholder="Mot de passe Admin" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-400">
+                    <button onclick="verifyAdminPassword()" class="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl">Connexion Admin</button>
+                </div>
+            </div>
+
+            <!-- Backup Export / Import -->
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                <h4 class="font-bold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="database" class="w-4 h-4"></i> Enregistrement & Sauvegarde Complète
+                </h4>
+                <p class="text-xs text-slate-400">Exportez l'intégralité des discussions et signalements sous forme de fichier structuré JSON ou texte.</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="exportFullJSON()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5">
+                        <i data-lucide="download" class="w-4 h-4"></i> Exporter Backup JSON
+                    </button>
+                    <button onclick="exportChatText()" class="bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs px-3.5 py-2 rounded-xl border border-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i> Exporter Chat (.txt)
+                    </button>
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs px-3.5 py-2 rounded-xl border border-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="upload" class="w-4 h-4 text-emerald-400"></i> Importer Backup JSON
+                        <input type="file" accept=".json" onchange="importFullJSON(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Audit Trail Logs -->
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
+                <h4 class="font-bold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="list-tree" class="w-4 h-4"></i> Journal des Événements de Sécurité
+                </h4>
+                <div id="security-audit-logs" class="max-h-32 overflow-y-auto text-[11px] font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-slate-400 space-y-1 custom-scrollbar">
+                    <!-- Logs dynamically populated -->
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
+                <button onclick="clearAllDataSecurity()" class="text-xs bg-red-950 hover:bg-red-900 border border-red-500/40 text-red-400 px-3 py-2 rounded-xl font-bold">Purge Réseau Local</button>
+                <button onclick="closeModal('modal-security')" class="px-4 py-2 bg-amber-400 text-slate-950 font-bold text-xs rounded-xl">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCRIPT LOGIC -->
+    <script>
+        // --- 1. DATA CONSTANTS: 15 DEPARTMENTS & CHEFS-LIEUX ---
+        const CONGO_DEPARTMENTS = [
+            { name: 'Bouenza', city: 'Madingou', lat: -4.1537, lng: 13.5500 },
+            { name: 'Brazzaville', city: 'Brazzaville', lat: -4.2634, lng: 15.2429 },
+            { name: 'Congo-Oubangui', city: 'Mossaka', lat: -1.2269, lng: 16.7938 },
+            { name: 'Cuvette', city: 'Owando', lat: -0.4819, lng: 15.8999 },
+            { name: 'Cuvette-Ouest', city: 'Ewo', lat: -0.8756, lng: 14.8206 },
+            { name: 'Djoué-Léfini', city: 'Odziba', lat: -3.4200, lng: 15.4500 },
+            { name: 'Kouilou', city: 'Madingo-Kayes', lat: -4.4358, lng: 11.7003 },
+            { name: 'Lékoumou', city: 'Sibiti', lat: -3.6819, lng: 13.3499 },
+            { name: 'Likouala', city: 'Impfondo', lat: 1.6264, lng: 18.0606 },
+            { name: 'Niari', city: 'Dolisie', lat: -4.1980, lng: 12.6656 },
+            { name: 'Nkéni-Alima', city: 'Gamboma', lat: -1.8764, lng: 15.8644 },
+            { name: 'Plateaux', city: 'Djambala', lat: -2.5447, lng: 14.7533 },
+            { name: 'Pointe-Noire', city: 'Pointe-Noire', lat: -4.7988, lng: 11.8663 },
+            { name: 'Pool', city: 'Kinkala', lat: -4.3614, lng: 14.7644 },
+            { name: 'Sangha', city: 'Ouesso', lat: 1.6136, lng: 16.0517 }
+        ];
+
+        const DEMO_SIGNALS = [
+            { id: 101, dept: 'Brazzaville', location: 'Bacongo - Marché Total', status: 'OK', note: 'Tension rétablie dans le secteur.', timestamp: Date.now() - 1000 * 60 * 15, duration: '2 heures', votesUp: 14, votesDown: 1, lat: -4.2850, lng: 15.2650 },
+            { id: 102, dept: 'Pointe-Noire', location: 'Tié-Tié / Fond Tié-Tié', status: 'COUPURE', note: 'Panne générale de transformateur.', timestamp: Date.now() - 1000 * 60 * 40, duration: 'Depuis ce matin', votesUp: 31, votesDown: 2, lat: -4.8150, lng: 11.8850 },
+            { id: 103, dept: 'Niari', location: 'Dolisie Grand Marché', status: 'INSTABLE', note: 'Baisse importante de tension.', timestamp: Date.now() - 1000 * 60 * 90, duration: '3 heures', votesUp: 9, votesDown: 0, lat: -4.1980, lng: 12.6656 },
+            { id: 104, dept: 'Sangha', location: 'Ouesso Centre', status: 'OK', note: 'Service régulier.', timestamp: Date.now() - 1000 * 60 * 120, duration: 'Service continu', votesUp: 5, votesDown: 0, lat: 1.6136, lng: 16.0517 },
+            { id: 105, dept: 'Cuvette', location: 'Owando Quartier Congo', status: 'COUPURE', note: 'Coupure programmée E2C.', timestamp: Date.now() - 1000 * 60 * 180, duration: '4 heures', votesUp: 12, votesDown: 1, lat: -0.4819, lng: 15.8999 }
+        ];
+
+        const DEMO_CHAT = [
+            { id: 201, room: 'GENERAL', author: 'Modérateur242', text: 'Bienvenue sur la plateforme citoyenne Wapi Courant 242. Informez votre communauté en temps réel !', tag: '⚡ Info Directe', timestamp: Date.now() - 1000 * 60 * 60, photo: '', audioBlob: null, likes: 12, avatarColor: '#f59e0b' },
+            { id: 202, room: 'Brazzaville', author: 'Makélé_Boy', text: 'Le courant vient de revenir à Makélékélé vers l\'arrêt Chateau !', tag: '🟢 Courant rétabli', timestamp: Date.now() - 1000 * 60 * 25, photo: '', audioBlob: null, likes: 6, avatarColor: '#10b981' }
+        ];
+
+        // --- 2. STATE ---
+        let signals = JSON.parse(localStorage.getItem('wapi242_signals')) || DEMO_SIGNALS;
+        let chatMessages = JSON.parse(localStorage.getItem('wapi242_chat')) || DEMO_CHAT;
+        let userProfile = JSON.parse(localStorage.getItem('wapi242_profile')) || { pseudo: 'Citoyen242', dept: 'Brazzaville', color: '#fbbf24' };
+        let securityConfig = JSON.parse(localStorage.getItem('wapi242_security')) || { pin: '', masterPass: 'admin242', isLocked: false, isAdmin: false };
+        let auditLogs = JSON.parse(localStorage.getItem('wapi242_audit')) || [ { time: new Date().toLocaleTimeString(), event: "Système de sécurité démarré" } ];
+
+        let activeChatRoom = 'GENERAL';
+        let lastReportTime = 0;
+        let lastMessageTime = 0;
+        let leafletMap = null;
+        let mapMarkers = [];
+        let currentChatImageBase64 = '';
+        
+        // MediaRecorder variables
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordedAudioBase64 = null;
+        let isRecordingAudio = false;
+
+        // Charts references
+        let pieChartInstance = null;
+        let barChartInstance = null;
+
+        // --- 3. INIT ON LOAD ---
+        window.onload = function() {
+            lucide.createIcons();
+            checkSecurityLockState();
+            syncUserProfileUI();
+            updateStatsCounters();
+            renderSignalsGrid(signals);
+            renderChatRoomsList();
+            renderChatMessages();
+            initLeafletMap();
+            renderMapDeptList();
+            initCharts();
+            populateStatsTable();
+            renderAuditLogs();
+        };
+
+        // --- 4. SECURITY & ACCESS CONTROL ---
+        function checkSecurityLockState() {
+            if (securityConfig.pin && securityConfig.isLocked) {
+                const screen = document.getElementById('pin-lock-screen');
+                screen.classList.remove('hidden');
+                screen.classList.add('flex');
+            }
+            if (securityConfig.isAdmin) {
+                document.getElementById('admin-mode-badge').classList.remove('hidden');
+                document.getElementById('admin-mode-badge').classList.add('flex');
+            }
+        }
+
+        function unlockAppWithPIN() {
+            const inputPin = document.getElementById('pin-input').value;
+            if (inputPin === securityConfig.pin) {
+                securityConfig.isLocked = false;
+                saveSecurityConfig();
+                document.getElementById('pin-lock-screen').classList.add('hidden');
+                document.getElementById('pin-lock-screen').classList.remove('flex');
+                document.getElementById('pin-input').value = '';
+                logAuditEvent('Déverrouillage de l\'application réussi');
+            } else {
+                document.getElementById('pin-error-msg').classList.remove('hidden');
+                logAuditEvent('ÉCHEC de déverrouillage PIN');
+            }
+        }
+
+        function lockAppManual() {
+            if (!securityConfig.pin) {
+                alert('Veuillez d\'abord définir un code PIN dans la section Sécurité.');
+                openModal('modal-security');
+                return;
+            }
+            securityConfig.isLocked = true;
+            saveSecurityConfig();
+            checkSecurityLockState();
+            logAuditEvent('Verrouillage manuel de l\'application');
+        }
+
+        function savePINSetting() {
+            const pinVal = document.getElementById('security-pin-setting').value.trim();
+            if (pinVal.length === 4 && /^\d+$/.test(pinVal)) {
+                securityConfig.pin = pinVal;
+                saveSecurityConfig();
+                alert('Code PIN à 4 chiffres configuré !');
+                logAuditEvent('Nouveau code PIN enregistré');
+            } else {
+                alert('Veuillez entrer un code PIN valide de 4 chiffres.');
+            }
+        }
+
+        function disablePINSetting() {
+            securityConfig.pin = '';
+            securityConfig.isLocked = false;
+            saveSecurityConfig();
+            alert('Code PIN désactivé.');
+            logAuditEvent('Désactivation du code PIN');
+        }
+
+        function verifyAdminPassword() {
+            const pass = document.getElementById('admin-password-input').value;
+            if (pass === securityConfig.masterPass) {
+                securityConfig.isAdmin = true;
+                saveSecurityConfig();
+                checkSecurityLockState();
+                alert('Mode Administrateur déverrouillé !');
+                logAuditEvent('Connexion Administrateur réussie');
+                closeModal('modal-security');
+            } else {
+                alert('Mot de passe administrateur incorrect.');
+                logAuditEvent('Tentative de connexion Admin échouée');
+            }
+        }
+
+        function toggleAdminLogin() {
+            securityConfig.isAdmin = false;
+            saveSecurityConfig();
+            document.getElementById('admin-mode-badge').classList.add('hidden');
+            document.getElementById('admin-mode-badge').classList.remove('flex');
+            alert('Mode Administrateur désactivé.');
+        }
+
+        function saveSecurityConfig() {
+            localStorage.setItem('wapi242_security', JSON.stringify(securityConfig));
+        }
+
+        function logAuditEvent(eventStr) {
+            const logItem = { time: new Date().toLocaleTimeString(), event: eventStr };
+            auditLogs.unshift(logItem);
+            if (auditLogs.length > 25) auditLogs.pop();
+            localStorage.setItem('wapi242_audit', JSON.stringify(auditLogs));
+            renderAuditLogs();
+        }
+
+        function renderAuditLogs() {
+            const container = document.getElementById('security-audit-logs');
+            if (!container) return;
+            container.innerHTML = auditLogs.map(l => `<div><span class="text-amber-400">[${l.time}]</span> ${escapeHtml(l.event)}</div>`).join('');
+        }
+
+        // --- 5. DATA EXPORT & IMPORT (BACKUP & LOGGING) ---
+        function exportFullJSON() {
+            const dataToExport = {
+                signals: signals,
+                chatMessages: chatMessages,
+                userProfile: userProfile,
+                auditLogs: auditLogs,
+                exportTimestamp: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wapi242_full_backup_${Date.now()}.json`;
+            a.click();
+            logAuditEvent('Sauvegarde JSON exportée');
+        }
+
+        function exportChatText() {
+            let logText = `=== WAPI COURANT 242 - HISTORIQUE DES CONVERSATIONS ===\nExporté le: ${new Date().toLocaleString()}\n\n`;
+            chatMessages.forEach(m => {
+                logText += `[${new Date(m.timestamp).toLocaleString()}] (${m.room}) ${m.author}: ${m.text} ${m.tag ? '[' + m.tag + ']' : ''}\n`;
+            });
+
+            const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wapi242_chat_log.txt`;
+            a.click();
+            logAuditEvent('Journal du chat exporté en fichier TXT');
+        }
+
+        function importFullJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const imported = JSON.parse(evt.target.result);
+                    if (imported.signals && imported.chatMessages) {
+                        signals = imported.signals;
+                        chatMessages = imported.chatMessages;
+                        localStorage.setItem('wapi242_signals', JSON.stringify(signals));
+                        localStorage.setItem('wapi242_chat', JSON.stringify(chatMessages));
+                        alert('Données restaurées avec succès !');
+                        location.reload();
+                    }
+                } catch(err) {
+                    alert('Fichier JSON invalide.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAllDataSecurity() {
+            if (confirm('Voulez-vous vraiment effacer tous les signalements et messages enregistrés localement ?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // --- 6. LEAFLET INTERACTIVE MAP ---
+        function initLeafletMap() {
+            if (leafletMap) return;
+            leafletMap = L.map('leaflet-map').setView([-1.2, 15.4], 6);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }).addTo(leafletMap);
+            renderMapMarkers();
+        }
+
+        function renderMapMarkers() {
+            if (!leafletMap) return;
+            mapMarkers.forEach(m => leafletMap.removeLayer(m));
+            mapMarkers = [];
+
+            CONGO_DEPARTMENTS.forEach(dept => {
+                const deptSigs = signals.filter(s => s.dept === dept.name);
+                let statusColor = '#10b981'; // OK Green
+                let statusText = '🟢 Normal';
+
+                if (deptSigs.some(s => s.status === 'COUPURE')) {
+                    statusColor = '#ef4444'; // Red
+                    statusText = '🔴 Coupure Signalée';
+                } else if (deptSigs.some(s => s.status === 'INSTABLE')) {
+                    statusColor = '#f59e0b'; // Amber
+                    statusText = '🟡 Instable';
+                }
+
+                const markerIcon = L.divIcon({
+                    html: `<div style="background-color: ${statusColor}; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #0f172a; box-shadow: 0 0 10px ${statusColor};"></div>`,
+                    iconSize: [18, 18],
+                    className: 'custom-map-pin'
+                });
+
+                const marker = L.marker([dept.lat, dept.lng], { icon: markerIcon }).addTo(leafletMap);
+                
+                marker.bindPopup(`
+                    <div class="p-1 space-y-1 text-xs">
+                        <div class="font-extrabold text-white text-sm">${dept.name}</div>
+                        <div class="text-slate-400">Chef-lieu: <span class="text-slate-200 font-semibold">${dept.city}</span></div>
+                        <div class="text-slate-300">État: <span class="font-bold" style="color: ${statusColor}">${statusText}</span></div>
+                        <div class="text-[10px] text-slate-400">Signalements récents: ${deptSigs.length}</div>
+                        <div class="pt-2 flex gap-1">
+                            <button onclick="openReportForDept('${dept.name}')" class="bg-amber-400 text-slate-950 font-bold px-2 py-1 rounded text-[10px]">Signaler Panne</button>
+                            <button onclick="switchChatRoom('${dept.name}'); switchTab('chat');" class="bg-slate-800 text-slate-200 font-bold px-2 py-1 rounded text-[10px] border border-slate-700">Rejoindre Chat</button>
+                        </div>
+                    </div>
+                `);
+                mapMarkers.push(marker);
+            });
+        }
+
+        function renderMapDeptList() {
+            const container = document.getElementById('map-dept-list');
+            container.innerHTML = CONGO_DEPARTMENTS.map(d => {
+                const deptSigs = signals.filter(s => s.dept === d.name);
+                const hasCoupure = deptSigs.some(s => s.status === 'COUPURE');
+                const badgeColor = hasCoupure ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                const badgeText = hasCoupure ? '🔴 Coupure' : '🟢 Stable';
+
+                return `
+                    <div onclick="focusDeptOnMap(${d.lat}, ${d.lng})" class="cursor-pointer bg-slate-950 hover:bg-slate-850 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between transition">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-xs text-slate-100">${d.name}</span>
+                                <span class="text-[9px] px-2 py-0.5 rounded-full border ${badgeColor} font-bold">${badgeText}</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400">Chef-lieu: ${d.city}</span>
+                        </div>
+                        <span class="text-xs font-bold text-amber-400 hover:underline">Zoom 🔍</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function focusDeptOnMap(lat, lng) {
+            if (leafletMap) leafletMap.flyTo([lat, lng], 9);
+        }
+
+        function openReportForDept(deptName) {
+            document.getElementById('form-dept').value = deptName;
+            openModal('modal-report');
+        }
+
+        // --- 7. MULTI-ROOM CHAT ENGINE & AUDIO RECORDING ---
+        function renderChatRoomsList() {
+            const container = document.getElementById('chat-rooms-list');
+            const rooms = [{ id: 'GENERAL', label: '🌍 Général Congo 242' }, ...CONGO_DEPARTMENTS.map(d => ({ id: d.name, label: `💬 Salon ${d.name}` }))];
+            
+            container.innerHTML = rooms.map(r => `
+                <button onclick="switchChatRoom('${r.id}')" class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition ${activeChatRoom === r.id ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20' : 'text-slate-400 hover:bg-slate-800'}">
+                    <span>${r.label}</span>
+                    ${activeChatRoom === r.id ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>' : ''}
+                </button>
+            `).join('');
+        }
+
+        function switchChatRoom(roomId) {
+            activeChatRoom = roomId;
+            document.getElementById('current-room-title').innerText = roomId === 'GENERAL' ? 'Salon Général - Congo 242' : `Salon ${roomId}`;
+            document.getElementById('current-room-subtitle').innerText = roomId === 'GENERAL' ? 'Canal principal d\'échange citoyen' : `Échanges en direct pour la région de ${roomId}`;
+            renderChatRoomsList();
+            renderChatMessages();
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('chat-messages-container');
+            const filtered = chatMessages.filter(m => activeChatRoom === 'GENERAL' || m.room === activeChatRoom);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-500 text-xs italic">Aucun message dans ce salon. Soyez le premier à informer les habitants !</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(msg => `
+                <div class="flex items-start gap-2.5 group">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-slate-950 font-black text-xs shrink-0 shadow-md" style="background-color: ${msg.avatarColor || '#fbbf24'}">
+                        ${msg.author.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl max-w-[85%] space-y-1 shadow-sm">
+                        <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                            <span class="font-bold text-slate-200">${escapeHtml(msg.author)}</span>
+                            <span>•</span>
+                            <span>${formatTimeAgo(msg.timestamp)}</span>
+                            ${msg.tag ? `<span class="bg-amber-400/10 text-amber-400 px-2 py-0.5 rounded-full font-bold border border-amber-400/20 text-[9px]">${msg.tag}</span>` : ''}
+                        </div>
+                        <p class="text-xs text-slate-100 whitespace-pre-wrap">${escapeHtml(msg.text)}</p>
+                        ${msg.photo ? `<img src="${msg.photo}" class="rounded-xl max-h-48 object-cover mt-2 border border-slate-800">` : ''}
+                        ${msg.audioBlob ? `
+                            <div class="mt-2 bg-slate-950 p-2 rounded-xl border border-slate-800 flex items-center gap-2">
+                                <audio controls src="${msg.audioBlob}" class="h-8 w-48 text-xs"></audio>
+                            </div>
+                        ` : ''}
+                        <div class="flex items-center justify-between pt-1">
+                            <button onclick="likeChatMessage(${msg.id})" class="text-[10px] text-slate-400 hover:text-red-400 flex items-center gap-1">
+                                <i data-lucide="heart" class="w-3 h-3 text-red-400"></i>
+                                <span>${msg.likes || 0}</span>
+                            </button>
+                            ${securityConfig.isAdmin ? `<button onclick="deleteChatMessage(${msg.id})" class="text-[10px] text-red-400 hover:underline">Supprimer</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            lucide.createIcons();
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendChatMessage(e) {
+            e.preventDefault();
+            if (Date.now() - lastMessageTime < 2000) {
+                alert('Veuillez patienter 2 secondes entre l\'envoi de vos messages.');
+                return;
+            }
+
+            const input = document.getElementById('chat-input-text');
+            const text = input.value.trim();
+            if (!text && !currentChatImageBase64 && !recordedAudioBase64) return;
+
+            lastMessageTime = Date.now();
+            const newMsg = {
+                id: Date.now(),
+                room: activeChatRoom,
+                author: userProfile.pseudo,
+                text: text,
+                tag: document.getElementById('chat-tag-status').value,
+                timestamp: Date.now(),
+                photo: currentChatImageBase64,
+                audioBlob: recordedAudioBase64,
+                likes: 0,
+                avatarColor: userProfile.color
+            };
+
+            chatMessages.push(newMsg);
+            saveChatData();
+            renderChatMessages();
+
+            input.value = '';
+            clearChatImage();
+            clearChatAudio();
+        }
+
+        function likeChatMessage(msgId) {
+            const msg = chatMessages.find(m => m.id === msgId);
+            if (msg) {
+                msg.likes = (msg.likes || 0) + 1;
+                saveChatData();
+                renderChatMessages();
+            }
+        }
+
+        function deleteChatMessage(msgId) {
+            chatMessages = chatMessages.filter(m => m.id !== msgId);
+            saveChatData();
+            renderChatMessages();
+            logAuditEvent(`Message #${msgId} supprimé par Admin`);
+        }
+
+        function saveChatData() {
+            localStorage.setItem('wapi242_chat', JSON.stringify(chatMessages));
+        }
+
+        function previewChatImage(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    currentChatImageBase64 = evt.target.result;
+                    document.getElementById('chat-image-preview').src = currentChatImageBase64;
+                    document.getElementById('chat-media-preview-container').classList.remove('hidden');
+                    document.getElementById('chat-image-preview-box').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function clearChatImage() {
+            currentChatImageBase64 = '';
+            document.getElementById('chat-image-preview-box').classList.add('hidden');
+            checkMediaContainerVisibility();
+        }
+
+        function clearChatAudio() {
+            recordedAudioBase64 = null;
+            document.getElementById('chat-audio-preview-box').classList.add('hidden');
+            checkMediaContainerVisibility();
+        }
+
+        function checkMediaContainerVisibility() {
+            if (!currentChatImageBase64 && !recordedAudioBase64) {
+                document.getElementById('chat-media-preview-container').classList.add('hidden');
+            }
+        }
+
+        // Web Audio API Recording Handler
+        async function toggleAudioRecording() {
+            const btnText = document.getElementById('record-btn-text');
+            if (!isRecordingAudio) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            recordedAudioBase64 = reader.result;
+                            document.getElementById('chat-media-preview-container').classList.remove('hidden');
+                            document.getElementById('chat-audio-preview-box').classList.remove('hidden');
+                        };
+                        reader.readAsDataURL(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    isRecordingAudio = true;
+                    btnText.innerText = "Arrêter";
+                } catch (err) {
+                    alert("Accès au micro non disponible. Note vocale simulée.");
+                    recordedAudioBase64 = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+                    document.getElementById('chat-media-preview-container').classList.remove('hidden');
+                    document.getElementById('chat-audio-preview-box').classList.remove('hidden');
+                }
+            } else {
+                if (mediaRecorder) mediaRecorder.stop();
+                isRecordingAudio = false;
+                btnText.innerText = "Vocal";
+            }
+        }
+
+        // --- 8. SIGNAL REPORTING ENGINE ---
+        function submitNewSignal(e) {
+            e.preventDefault();
+            // Anti-Spam (20s Cooldown)
+            if (Date.now() - lastReportTime < 20000) {
+                alert('Protection Anti-Spam : Veuillez patienter 20 secondes avant de poster un autre signalement.');
+                return;
+            }
+
+            const dept = document.getElementById('form-dept').value;
+            const location = document.getElementById('form-neighborhood').value.trim();
+            const statusElem = document.querySelector('input[name="form-status"]:checked');
+            const note = document.getElementById('form-note').value.trim();
+            const duration = document.getElementById('form-duration').value.trim() || 'Récemment';
+
+            if (!dept || !location || !statusElem) return;
+
+            lastReportTime = Date.now();
+            const deptObj = CONGO_DEPARTMENTS.find(d => d.name === dept);
+
+            const newSig = {
+                id: Date.now(),
+                dept: dept,
+                location: location,
+                status: statusElem.value,
+                note: note,
+                duration: duration,
+                timestamp: Date.now(),
+                votesUp: 1,
+                votesDown: 0,
+                lat: deptObj ? deptObj.lat : -4.26,
+                lng: deptObj ? deptObj.lng : 15.24
+            };
+
+            signals.unshift(newSig);
+            localStorage.setItem('wapi242_signals', JSON.stringify(signals));
+
+            // Automatic system message in chat
+            chatMessages.push({
+                id: Date.now() + 1,
+                room: dept,
+                author: '⚡ Bot Alerte 242',
+                text: `Nouveau signalement à ${location} (${dept}) : Status ${statusElem.value}`,
+                tag: '⚡ Info Directe',
+                timestamp: Date.now(),
+                likes: 1,
+                avatarColor: '#f59e0b'
+            });
+            saveChatData();
+
+            logAuditEvent(`Nouveau signalement créé pour ${location} (${dept})`);
+            updateStatsCounters();
+            applyFilters();
+            renderMapMarkers();
+            renderMapDeptList();
+            updateChartsData();
+            populateStatsTable();
+            closeModal('modal-report');
+        }
+
+        function voteSignal(id, type) {
+            const sig = signals.find(s => s.id === id);
+            if (sig) {
+                if (type === 'up') sig.votesUp += 1;
+                else sig.votesDown += 1;
+                localStorage.setItem('wapi242_signals', JSON.stringify(signals));
+                applyFilters();
+            }
+        }
+
+        function deleteSignal(id) {
+            signals = signals.filter(s => s.id !== id);
+            localStorage.setItem('wapi242_signals', JSON.stringify(signals));
+            updateStatsCounters();
+            applyFilters();
+            renderMapMarkers();
+            updateChartsData();
+            logAuditEvent(`Signalement #${id} supprimé`);
+        }
+
+        function applyFilters() {
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const deptVal = document.getElementById('dept-filter').value;
+            const statusVal = document.getElementById('status-filter').value;
+
+            const filtered = signals.filter(s => {
+                const matchSearch = s.location.toLowerCase().includes(searchVal) || s.dept.toLowerCase().includes(searchVal);
+                const matchDept = deptVal === 'ALL' || s.dept === deptVal;
+                const matchStatus = statusVal === 'ALL' || s.status === statusVal;
+                return matchSearch && matchDept && matchStatus;
+            });
+
+            renderSignalsGrid(filtered);
+        }
+
+        function setFilterStatus(status) {
+            document.getElementById('status-filter').value = status;
+            switchTab('list');
+            applyFilters();
+        }
+
+        function renderSignalsGrid(items) {
+            const container = document.getElementById('signals-grid');
+            if (items.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">Aucun signalement ne correspond à vos filtres.</div>`;
+                return;
+            }
+
+            container.innerHTML = items.map(s => {
+                let statusBadge = s.status === 'OK' ? '<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-xs font-bold">🟢 En Service</span>' :
+                                  s.status === 'INSTABLE' ? '<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full text-xs font-bold">🟡 Instable</span>' :
+                                  '<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-full text-xs font-bold">🔴 Coupure</span>';
+
+                return `
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg space-y-3 flex flex-col justify-between">
+                        <div class="space-y-2">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">${s.dept}</span>
+                                    <h4 class="font-extrabold text-white text-base">${escapeHtml(s.location)}</h4>
+                                </div>
+                                ${statusBadge}
+                            </div>
+                            ${s.note ? `<p class="text-xs text-slate-300 italic bg-slate-950 p-2.5 rounded-xl border border-slate-850">"${escapeHtml(s.note)}"</p>` : ''}
+                            <div class="text-[11px] text-slate-400 flex items-center gap-3">
+                                <span>⏱️ ${escapeHtml(s.duration)}</span>
+                                <span>•</span>
+                                <span>🕒 ${formatTimeAgo(s.timestamp)}</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <button onclick="voteSignal(${s.id}, 'up')" class="bg-slate-950 hover:bg-slate-800 border border-slate-800 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-400 flex items-center gap-1">
+                                    👍 ${s.votesUp}
+                                </button>
+                                <button onclick="voteSignal(${s.id}, 'down')" class="bg-slate-950 hover:bg-slate-800 border border-slate-800 px-2.5 py-1 rounded-lg text-xs font-bold text-red-400 flex items-center gap-1">
+                                    👎 ${s.votesDown}
+                                </button>
+                            </div>
+                            ${securityConfig.isAdmin ? `<button onclick="deleteSignal(${s.id})" class="text-xs text-red-400 font-bold hover:underline">Supprimer</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- 9. CHARTS & STATS ENGINE ---
+        function updateStatsCounters() {
+            document.getElementById('count-total').innerText = signals.length;
+            document.getElementById('count-ok').innerText = signals.filter(s => s.status === 'OK').length;
+            document.getElementById('count-instable').innerText = signals.filter(s => s.status === 'INSTABLE').length;
+            document.getElementById('count-coupure').innerText = signals.filter(s => s.status === 'COUPURE').length;
+        }
+
+        function initCharts() {
+            const ctxPie = document.getElementById('chart-pie-status').getContext('2d');
+            pieChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: getPieData(),
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+            });
+
+            const ctxBar = document.getElementById('chart-bar-cities').getContext('2d');
+            barChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: getBarData(),
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8' } }, x: { ticks: { color: '#94a3b8' } } } }
+            });
+        }
+
+        function updateChartsData() {
+            if (pieChartInstance) {
+                pieChartInstance.data = getPieData();
+                pieChartInstance.update();
+            }
+            if (barChartInstance) {
+                barChartInstance.data = getBarData();
+                barChartInstance.update();
+            }
+        }
+
+        function getPieData() {
+            return {
+                labels: ['🟢 OK / Service Normal', '🟡 Instable', '🔴 Coupure Totale'],
+                datasets: [{
+                    data: [
+                        signals.filter(s => s.status === 'OK').length,
+                        signals.filter(s => s.status === 'INSTABLE').length,
+                        signals.filter(s => s.status === 'COUPURE').length
+                    ],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 0
+                }]
+            };
+        }
+
+        function getBarData() {
+            const topDepts = CONGO_DEPARTMENTS.slice(0, 6);
+            return {
+                labels: topDepts.map(d => d.name),
+                datasets: [{
+                    label: 'Nombre de Coupures',
+                    data: topDepts.map(d => signals.filter(s => s.dept === d.name && s.status === 'COUPURE').length),
+                    backgroundColor: '#f59e0b',
+                    borderRadius: 8
+                }]
+            };
+        }
+
+        function populateStatsTable() {
+            const tbody = document.getElementById('stats-table-body');
+            tbody.innerHTML = CONGO_DEPARTMENTS.map(d => {
+                const deptSigs = signals.filter(s => s.dept === d.name);
+                const coupures = deptSigs.filter(s => s.status === 'COUPURE').length;
+                const stabilityScore = deptSigs.length > 0 ? Math.round(((deptSigs.length - coupures) / deptSigs.length) * 100) : 90;
+
+                return `
+                    <tr class="hover:bg-slate-950/50 transition">
+                        <td class="py-3 px-3 font-bold text-white">${d.name} <span class="text-slate-400 font-normal">(${d.city})</span></td>
+                        <td class="py-3 px-3">${coupures > 0 ? '<span class="text-red-400 font-bold">🔴 Coupure</span>' : '<span class="text-emerald-400 font-bold">🟢 Normal</span>'}</td>
+                        <td class="py-3 px-3 font-semibold text-slate-300">${deptSigs.length} rapport(s)</td>
+                        <td class="py-3 px-3 text-right font-black ${stabilityScore >= 70 ? 'text-emerald-400' : 'text-amber-400'}">${stabilityScore}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // --- 10. UI & AUXILIARY HELPERS ---
+        function syncUserProfileUI() {
+            document.getElementById('user-pseudo-badge').innerText = userProfile.pseudo;
+            document.getElementById('user-avatar-badge').innerText = userProfile.pseudo.charAt(0).toUpperCase();
+            document.getElementById('user-avatar-badge').style.backgroundColor = userProfile.color;
+            document.getElementById('profile-pseudo').value = userProfile.pseudo;
+            document.getElementById('profile-color').value = userProfile.color;
+            document.getElementById('profile-dept').value = userProfile.dept;
+        }
+
+        function saveUserProfile(e) {
+            e.preventDefault();
+            userProfile.pseudo = document.getElementById('profile-pseudo').value.trim() || 'Citoyen242';
+            userProfile.color = document.getElementById('profile-color').value;
+            userProfile.dept = document.getElementById('profile-dept').value;
+            localStorage.setItem('wapi242_profile', JSON.stringify(userProfile));
+            syncUserProfileUI();
+            closeModal('modal-profile');
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('border-amber-400', 'text-amber-400'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+            document.getElementById(`tab-btn-${tabName}`).classList.add('border-amber-400', 'text-amber-400');
+            document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+
+            if (tabName === 'map' && leafletMap) {
+                setTimeout(() => leafletMap.invalidateSize(), 200);
+            }
+        }
+
+        function openModal(id) {
+            const m = document.getElementById(id);
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function formatTimeAgo(timestamp) {
+            const diff = Math.floor((Date.now() - timestamp) / 1000);
+            if (diff < 60) return "À l'instant";
+            if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
+            return `Il y a ${Math.floor(diff / 86400)} j`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
