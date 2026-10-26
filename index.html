@@ -1,917 +1,566 @@
 <!DOCTYPE html>
-<html lang="fr" class="dark">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wapi Courant 242 - Suivi des coupures au Congo</title>
-    <!-- Tailwind CSS -->
+    <title>Wapi Courant 242 - Suivi Électricité Congo</title>
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        cgGreen: '#009e60',
-                        cgYellow: '#fbde4a',
-                        cgRed: '#cc0000',
-                    }
-                }
-            }
-        }
-    </script>
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome Icons -->
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .custom-leaflet-popup .leaflet-popup-content-wrapper {
-            background: #1f2937;
-            color: #f3f4f6;
+        body {
+            background-color: #070913;
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        #map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 420px;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
             border-radius: 12px;
-            padding: 4px;
-            border: 1px solid #374151;
+            z-index: 10;
         }
-        .custom-leaflet-popup .leaflet-popup-tip {
-            background: #1f2937;
+        .pulse-marker {
+            background: rgba(239, 68, 68, 0.9);
+            border-radius: 50%;
+            animation: pulse 1.8s infinite;
         }
-        /* Custom scrollbars */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .pulse-yellow {
+            background: rgba(245, 158, 11, 0.9);
+            border-radius: 50%;
+            animation: pulse-y 1.8s infinite;
+        }
+        @keyframes pulse-y {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+        .pulse-green {
+            background: rgba(34, 197, 94, 0.9);
+            border-radius: 50%;
+            animation: pulse-g 1.8s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        @keyframes pulse-g {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #374151;
+            border-radius: 4px;
+        }
     </style>
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col antialiased selection:bg-yellow-500 selection:text-black">
+<body class="p-3 md:p-6 min-h-screen flex flex-col justify-between space-y-6">
 
-    <!-- Toast Notifications Container -->
-    <div id="toastContainer" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+    <!-- MODAL AUTHENTIFICATION OBLIGATOIRE -->
+    <div id="authModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-900 border border-emerald-500/40 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-emerald-500 rounded-3xl mx-auto flex items-center justify-center text-gray-950 font-black text-3xl shadow-lg shadow-emerald-500/30">
+                    ⚡
+                </div>
+                <h2 class="text-2xl font-black text-white">Wapi Courant 
+                    <span style="background: linear-gradient(90deg, #009e60 33%, #fbde4a 33%, #fbde4a 66%, #cc0000 66%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">242</span>
+                </h2>
+                <p class="text-xs text-emerald-400 font-semibold">Identifiez-vous pour rejoindre le réseau communautaire</p>
+            </div>
 
-    <!-- Header Navigation -->
-    <header class="bg-gray-900 border-b border-gray-800 sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <!-- Logo Wapi Courant 242 avec drapeau du Congo -->
-            <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('dashboard')">
-                <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 shadow-inner">
-                    <i class="fa-solid font-bold text-yellow-400 text-xl fa-bolt animate-pulse"></i>
+            <form id="authForm" class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-400 font-semibold mb-1 block">Votre Pseudo / Nom</label>
+                    <input type="text" id="authPseudo" required placeholder="Ex: Merveille_242" class="w-full bg-gray-800 border border-gray-700 text-white rounded-xl p-3.5 text-sm outline-none focus:border-emerald-500">
                 </div>
                 <div>
-                    <div class="flex items-center gap-1.5 font-black text-xl tracking-tight">
-                        <span class="text-white">Wapi Courant</span>
-                        <div class="inline-flex items-center text-xs font-black px-1.5 py-0.5 rounded bg-gray-950 border border-gray-700">
-                            <span class="text-cgGreen">2</span><span class="text-cgYellow">4</span><span class="text-cgRed">2</span>
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-gray-400 font-medium">Observatoire Citoyen de l'Électricité</p>
+                    <label class="text-xs text-gray-400 font-semibold mb-1 block">Numéro de Téléphone (Confidentiel - Admin Uniquement)</label>
+                    <input type="tel" id="authPhone" required placeholder="Ex: +242 06 123 4567" class="w-full bg-gray-800 border border-gray-700 text-white rounded-xl p-3.5 text-sm outline-none focus:border-emerald-500">
+                    <span class="text-[10px] text-amber-400 mt-1 block">🔒 Votre numéro est crypté et invisible des autres citoyens.</span>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 font-semibold mb-1 block">Votre Département d'origine</label>
+                    <select id="authDept" class="w-full bg-gray-800 border border-gray-700 text-white rounded-xl p-3.5 text-sm outline-none focus:border-emerald-500">
+                        <option value="Brazzaville">Brazzaville</option>
+                        <option value="Pointe-Noire">Pointe-Noire</option>
+                        <option value="Bouenza">Bouenza</option>
+                        <option value="Niari">Niari</option>
+                        <option value="Pool">Pool</option>
+                        <option value="Cuvette">Cuvette</option>
+                        <option value="Sangha">Sangha</option>
+                        <option value="Plateaux">Plateaux</option>
+                        <option value="Likouala">Likouala</option>
+                        <option value="Kouilou">Kouilou</option>
+                        <option value="Lékoumou">Lékoumou</option>
+                        <option value="Cuvette-Ouest">Cuvette-Ouest</option>
+                        <option value="Djoué-Léfini">Djoué-Léfini</option>
+                        <option value="Nkéni-Alima">Nkéni-Alima</option>
+                        <option value="Congo-Oubangui">Congo-Oubangui</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-extrabold p-4 rounded-xl transition shadow-lg shadow-emerald-500/20 text-sm">
+                    Accéder à l'Application 🚀
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONTENEUR TOAST IN-APP POUR NOTIFICATIONS -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto w-full space-y-6">
+
+        <!-- HEADER -->
+        <header class="bg-gradient-to-r from-gray-900 via-gray-900 to-gray-950 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-wrap justify-between items-center gap-4 shadow-xl">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-gray-950 font-extrabold text-2xl shadow-lg shadow-emerald-500/30">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-wide text-white">Wapi Courant 
+                        <span style="background: linear-gradient(90deg, #009e60 33%, #fbde4a 33%, #fbde4a 66%, #cc0000 66%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">242</span>
+                    </h1>
+                    <p class="text-xs text-emerald-400 font-semibold tracking-wide">Suivi Communautaire de l'Électricité au Congo</p>
                 </div>
             </div>
 
-            <!-- Global Action & Profile Bar -->
-            <div class="flex items-center gap-2">
-                <button onclick="requestNotificationPermission()" id="notifPermBtn" title="Activer les notifications système"
-                        class="hidden sm:flex items-center gap-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-700 transition">
-                    <i class="fa-solid fa-bell text-yellow-400"></i>
-                    <span id="notifPermText">Activer Notifs</span>
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="requestNotificationPermission()" id="notifBadgeBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-bell text-amber-400"></i>
+                    <span id="notifStatusText">Activer Alertes</span>
                 </button>
 
-                <!-- Profile Badge / Trigger -->
-                <div id="userBadge" class="hidden items-center gap-2 bg-gray-800/80 border border-gray-700/80 rounded-lg p-1.5 pl-3">
-                    <div class="flex flex-col text-right text-xs">
-                        <span id="navUserPseudo" class="font-bold text-gray-200">Citoyen</span>
-                        <span id="navUserDept" class="text-[10px] text-gray-400">Brazzaville</span>
-                    </div>
-                    <button onclick="switchTab('profile')" class="w-8 h-8 rounded-md bg-yellow-500/20 text-yellow-400 flex items-center justify-center hover:bg-yellow-500/30 transition">
-                        <i class="fa-solid fa-user-gear text-sm"></i>
-                    </button>
+                <div class="flex items-center bg-gray-800 border border-gray-700 px-4 py-2 rounded-xl text-sm gap-3">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="headerUserPseudo" class="font-bold">Citoyen</span>
+                    <button onclick="logoutUser()" class="text-xs text-red-400 hover:text-red-300 ml-2" title="Déconnexion"><i class="fa-solid fa-power-off"></i></button>
                 </div>
+            </div>
+        </header>
 
-                <button id="loginBtnNav" onclick="openLoginModal()" class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-bold px-4 py-2 rounded-lg text-xs shadow-md shadow-yellow-500/10 transition">
-                    <i class="fa-solid fa-right-to-bracket mr-1"></i> Connexion
+        <!-- SONDAGE ÉCLAIR -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+            <div class="flex items-center space-x-3">
+                <div class="text-3xl">📊</div>
+                <div>
+                    <h2 class="text-sm font-bold text-white">Tendance du Réseau en Direct</h2>
+                    <p class="text-xs text-gray-400">Exprimez-vous en un clic : comment est la situation chez vous en ce moment ?</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
+                <button type="button" onclick="castVote('cut')" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                    <span>🔴 Coupure (<span id="voteCutCount">0</span>)</span>
+                </button>
+                <button type="button" onclick="castVote('instable')" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                    <span>🟡 Instable (<span id="voteInstableCount">0</span>)</span>
+                </button>
+                <button type="button" onclick="castVote('ok')" class="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                    <span>🟢 Rétabli (<span id="voteOkCount">0</span>)</span>
                 </button>
             </div>
         </div>
-    </header>
 
-    <!-- Main Navigation Tabs -->
-    <nav class="bg-gray-900/60 border-b border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-2 py-2 text-xs font-medium no-scrollbar">
-            <button id="tab-dashboard" onclick="switchTab('dashboard')" class="tab-btn px-4 py-2 rounded-lg bg-yellow-400 text-gray-950 font-bold flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-chart-line"></i> Carte & Vue d'ensemble
-            </button>
-            <button id="tab-report" onclick="switchTab('report')" class="tab-btn px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-triangle-exclamation"></i> Signaler une coupure
-            </button>
-            <button id="tab-chat" onclick="switchTab('chat')" class="tab-btn px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-comments"></i> Chat Citoyen
-            </button>
-            <button id="tab-stats" onclick="switchTab('stats')" class="tab-btn px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-chart-pie"></i> Statistiques Détaillées
-            </button>
-        </div>
-    </nav>
-
-    <!-- Main Content Container -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-        <!-- TAB 1: DASHBOARD & MAP -->
-        <section id="view-dashboard" class="space-y-6">
-            <!-- Alert Banner -->
-            <div class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-4 rounded-xl border border-gray-800 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-3 w-3 relative">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    </span>
-                    <div>
-                        <h2 class="font-bold text-sm text-gray-100">État du réseau électrique national</h2>
-                        <p class="text-xs text-gray-400">Consultez en temps réel les signalements enregistrés dans votre région.</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4 text-xs font-semibold">
-                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500"></span> Coupure (<span id="countCoupure">0</span>)</div>
-                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-yellow-400"></span> Instable (<span id="countInstable">0</span>)</div>
-                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Rétabli (<span id="countRetabli">0</span>)</div>
-                </div>
-            </div>
-
-            <!-- MAP SECTION -->
-            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl space-y-4">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-map-location-dot text-yellow-400 text-lg"></i>
-                        <h3 class="font-bold text-gray-100 text-base">Carte OpenStreetMap Live des Signalements</h3>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <select id="mapFilterDept" onchange="filterMapByDept()" class="bg-gray-950 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
-                            <option value="ALL">Tous les départements</option>
-                            <option value="Brazzaville">Brazzaville</option>
-                            <option value="Pointe-Noire">Pointe-Noire</option>
-                            <option value="Kouilou">Kouilou</option>
-                            <option value="Niari">Niari</option>
-                            <option value="Bouenza">Bouenza</option>
-                            <option value="Lékoumou">Lékoumou</option>
-                            <option value="Pool">Pool</option>
-                            <option value="Plateaux">Plateaux</option>
-                            <option value="Cuvette">Cuvette</option>
-                            <option value="Cuvette-Ouest">Cuvette-Ouest</option>
-                            <option value="Sangha">Sangha</option>
-                            <option value="Likouala">Likouala</option>
-                        </select>
-                        <button onclick="resetMapView()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs px-3 py-1.5 rounded-lg transition">
-                            <i class="fa-solid fa-rotate mr-1"></i> Réinitialiser
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Leaflet Map Container -->
-                <div id="map" class="w-full h-[450px] rounded-xl border border-gray-800 bg-gray-950 z-10 shadow-inner"></div>
-            </div>
-
-            <!-- Recent Reports Grid & Quick Poll -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Recent Reports Feed -->
-                <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="font-bold text-sm text-gray-200 flex items-center gap-2">
-                            <i class="fa-solid fa-list-ul text-yellow-400"></i> Derniers signalements communautaires
-                        </h3>
-                        <span class="text-[10px] text-gray-400">Mise à jour en temps réel</span>
-                    </div>
-                    <div id="reportsList" class="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                        <!-- Dynamic Reports injected here -->
-                    </div>
-                </div>
-
-                <!-- Express Community Poll -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center gap-2 text-yellow-400 mb-2">
-                            <i class="fa-solid fa-square-poll-vertical text-lg"></i>
-                            <h3 class="font-bold text-sm text-gray-100">Sondage Éclair Citoyen</h3>
-                        </div>
-                        <p class="text-xs text-gray-400 mb-4">Avez-vous eu du courant aujourd'hui plus de 6 heures consécutives ?</p>
-                        <div class="space-y-2" id="pollOptions">
-                            <button onclick="votePoll('yes')" class="w-full flex justify-between items-center p-3 rounded-xl bg-gray-800 hover:bg-gray-750 border border-gray-700 text-xs transition">
-                                <span>Oui, sans interruption majeure</span>
-                                <span id="pollCountYes" class="font-bold text-emerald-400">0</span>
-                            </button>
-                            <button onclick="votePoll('no')" class="w-full flex justify-between items-center p-3 rounded-xl bg-gray-800 hover:bg-gray-750 border border-gray-700 text-xs transition">
-                                <span>Non, coupures sévères</span>
-                                <span id="pollCountNo" class="font-bold text-red-400">0</span>
-                            </button>
-                            <button onclick="votePoll('unstable')" class="w-full flex justify-between items-center p-3 rounded-xl bg-gray-800 hover:bg-gray-750 border border-gray-700 text-xs transition">
-                                <span>Instabilité extrême (baisses de tension)</span>
-                                <span id="pollCountUnstable" class="font-bold text-yellow-400">0</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="text-[10px] text-gray-500 text-center pt-2 border-t border-gray-800">
-                        Chaque vote enregistre une notification globale.
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 2: PUBLISH REPORT -->
-        <section id="view-report" class="hidden max-w-2xl mx-auto space-y-6">
-            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl space-y-6">
-                <div class="border-b border-gray-800 pb-4">
-                    <h2 class="text-lg font-bold text-gray-100 flex items-center gap-2">
-                        <i class="fa-solid fa-bullhorn text-yellow-400"></i> Publier un nouveau signalement
+        <!-- CARTE & FORMULAIRE DE SIGNALEMENT -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col justify-between shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-gray-200 flex items-center text-base">
+                        <i class="fa-solid fa-map-location-dot text-emerald-400 mr-2 text-lg"></i> Carte Interactive OpenStreetMap (15 Départements)
                     </h2>
-                    <p class="text-xs text-gray-400 mt-1">Aidez votre quartier à documenter la réalité de la distribution électrique.</p>
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-semibold">
+                        ⚡ Temps Réel Instantané
+                    </span>
                 </div>
-
-                <form id="reportForm" onsubmit="handleReportSubmit(event)" class="space-y-5">
-                    <!-- Status selector -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-2">État du courant électrique *</label>
-                        <div class="grid grid-cols-3 gap-3">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="Coupure" class="peer hidden" checked>
-                                <div class="p-3 text-center rounded-xl border border-gray-700 bg-gray-950 peer-checked:border-red-500 peer-checked:bg-red-500/10 text-xs font-bold text-gray-400 peer-checked:text-red-400 transition">
-                                    <i class="fa-solid fa-circle-xmark block text-lg mb-1"></i> Coupure 🔴
-                                </div>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="Instable" class="peer hidden">
-                                <div class="p-3 text-center rounded-xl border border-gray-700 bg-gray-950 peer-checked:border-yellow-400 peer-checked:bg-yellow-400/10 text-xs font-bold text-gray-400 peer-checked:text-yellow-400 transition">
-                                    <i class="fa-solid fa-triangle-exclamation block text-lg mb-1"></i> Instable 🟡
-                                </div>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="status" value="Rétabli" class="peer hidden">
-                                <div class="p-3 text-center rounded-xl border border-gray-700 bg-gray-950 peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 text-xs font-bold text-gray-400 peer-checked:text-emerald-400 transition">
-                                    <i class="fa-solid fa-circle-check block text-lg mb-1"></i> Rétabli 🟢
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Department & Neighborhood -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-300 mb-1">Département *</label>
-                            <select id="reportDept" onchange="updateQuartierOptions()" required class="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
-                                <option value="Brazzaville">Brazzaville</option>
-                                <option value="Pointe-Noire">Pointe-Noire</option>
-                                <option value="Kouilou">Kouilou</option>
-                                <option value="Niari">Niari</option>
-                                <option value="Bouenza">Bouenza</option>
-                                <option value="Lékoumou">Lékoumou</option>
-                                <option value="Pool">Pool</option>
-                                <option value="Plateaux">Plateaux</option>
-                                <option value="Cuvette">Cuvette</option>
-                                <option value="Cuvette-Ouest">Cuvette-Ouest</option>
-                                <option value="Sangha">Sangha</option>
-                                <option value="Likouala">Likouala</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-300 mb-1">Quartier / Zone *</label>
-                            <input type="text" id="reportQuartier" placeholder="Ex: Poto-Poto, Makelekele, Tié-Tié..." required class="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
-                        </div>
-                    </div>
-
-                    <!-- Commentary -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1">Détails ou remarques</label>
-                        <textarea id="reportComment" rows="3" placeholder="Ex: Coupure depuis 14h suite à l'orage, transformateur à nouveau bruyant..." class="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 text-xs text-gray-200 focus:outline-none focus:border-yellow-400 resize-none"></textarea>
-                    </div>
-
-                    <button type="submit" class="w-full bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-bold py-3 rounded-xl text-xs shadow-lg shadow-yellow-500/10 transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-paper-plane"></i> Diffuser le signalement
-                    </button>
-                </form>
-            </div>
-        </section>
-
-        <!-- TAB 3: LIVE CHAT -->
-        <section id="view-chat" class="hidden space-y-4">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[650px]">
-                <!-- Chat Rooms Sidebar -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between">
-                    <div class="space-y-4">
-                        <h3 class="font-bold text-xs text-gray-300 uppercase tracking-wider">Salons de Discussion</h3>
-                        <div class="space-y-1">
-                            <button onclick="switchChatRoom('Général')" id="room-Général" class="chat-room-btn w-full text-left px-3 py-2.5 rounded-xl bg-gray-800 text-yellow-400 font-bold text-xs flex items-center justify-between">
-                                <span><i class="fa-solid fa-globe mr-2"></i> Général Congo</span>
-                                <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
-                            </button>
-                            <button onclick="switchChatRoom('Pannes & Urgences')" id="room-Pannes & Urgences" class="chat-room-btn w-full text-left px-3 py-2.5 rounded-xl text-gray-400 hover:bg-gray-800 text-xs flex items-center justify-between">
-                                <span><i class="fa-solid fa-triangle-exclamation mr-2 text-red-400"></i> Pannes & Urgences</span>
-                            </button>
-                            <button onclick="switchChatRoom('Entraide')" id="room-Entraide" class="chat-room-btn w-full text-left px-3 py-2.5 rounded-xl text-gray-400 hover:bg-gray-800 text-xs flex items-center justify-between">
-                                <span><i class="fa-solid fa-handshake mr-2 text-emerald-400"></i> Entraide & Solaires</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 text-[11px] text-gray-400">
-                        <i class="fa-solid fa-shield-halved text-yellow-400 mr-1"></i> Respectez les règles communautaires lors de vos échanges.
-                    </div>
-                </div>
-
-                <!-- Chat Box Area -->
-                <div class="lg:col-span-3 bg-gray-900 border border-gray-800 rounded-2xl flex flex-col justify-between overflow-hidden">
-                    <!-- Chat Header -->
-                    <div class="bg-gray-950 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-comments text-yellow-400"></i>
-                            <span id="currentRoomTitle" class="font-bold text-xs text-gray-200">Salon Général</span>
-                        </div>
-                        <span class="text-[10px] text-gray-500">Messages instantanés</span>
-                    </div>
-
-                    <!-- Messages Feed -->
-                    <div id="chatMessages" class="p-4 overflow-y-auto space-y-3 flex-grow bg-gray-900/40">
-                        <!-- Dynamic Messages -->
-                    </div>
-
-                    <!-- Audio Recorder Indicator -->
-                    <div id="audioRecordingBar" class="hidden bg-red-950/40 border-t border-red-900/50 px-4 py-2 flex items-center justify-between text-xs text-red-300">
-                        <span class="flex items-center gap-2"><i class="fa-solid fa-microphone text-red-500 animate-pulse"></i> Enregistrement en cours...</span>
-                        <button onclick="stopAudioRecording()" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-[10px] font-bold">Arrêter & Envoyer</button>
-                    </div>
-
-                    <!-- Chat Input Bar -->
-                    <form onsubmit="handleSendChatMessage(event)" class="p-3 bg-gray-950 border-t border-gray-800 flex items-center gap-2">
-                        <!-- Image Upload Trigger -->
-                        <input type="file" id="chatImageInput" accept="image/*" class="hidden" onchange="handleChatImageUpload(event)">
-                        <button type="button" onclick="document.getElementById('chatImageInput').click()" class="text-gray-400 hover:text-yellow-400 p-2 text-sm transition" title="Envoyer une photo">
-                            <i class="fa-solid fa-paperclip"></i>
-                        </button>
-                        <!-- Voice Note Trigger -->
-                        <button type="button" onclick="toggleAudioRecording()" class="text-gray-400 hover:text-yellow-400 p-2 text-sm transition" title="Note Vocale">
-                            <i class="fa-solid fa-microphone"></i>
-                        </button>
-
-                        <input type="text" id="chatInputText" placeholder="Écrivez votre message ici..." class="flex-grow bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
-                        <button type="submit" class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-bold px-4 py-2 rounded-xl text-xs transition">
-                            <i class="fa-solid fa-paper-plane"></i>
-                        </button>
-                    </form>
+                <div id="map-wrapper" class="shadow-inner border border-gray-800 rounded-xl overflow-hidden">
+                    <div id="map"></div>
                 </div>
             </div>
-        </section>
 
-        <!-- TAB 4: DETAILED STATS -->
-        <section id="view-stats" class="hidden space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Status Distribution Chart -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <h3 class="font-bold text-sm text-gray-200 flex items-center gap-2">
-                        <i class="fa-solid fa-chart-pie text-yellow-400"></i> Répartition Globales des États
-                    </h3>
-                    <div class="h-64 flex items-center justify-center">
-                        <canvas id="statusChart"></canvas>
-                    </div>
-                </div>
+            <!-- FORMULAIRE SIGNALEMENT -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 shadow-lg">
+                <h2 class="text-lg font-bold text-white flex items-center">
+                    <i class="fa-solid fa-bullhorn text-amber-400 mr-2"></i> Signaler une Coupure
+                </h2>
 
-                <!-- Top Neighborhoods Affected -->
-                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <h3 class="font-bold text-sm text-gray-200 flex items-center gap-2">
-                        <i class="fa-solid fa-ranking-star text-yellow-400"></i> Quartiers les Plus Impactés
-                    </h3>
-                    <div id="topNeighborhoods" class="space-y-2">
-                        <!-- Injected dynamically -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- PROFILE / LOGIN SETTINGS VIEW -->
-        <section id="view-profile" class="hidden max-w-md mx-auto">
-            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl space-y-5">
-                <div class="text-center border-b border-gray-800 pb-4">
-                    <div class="w-16 h-16 bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
-                        <i class="fa-solid fa-user-shield"></i>
-                    </div>
-                    <h2 class="text-base font-bold text-gray-100">Profil Citoyen</h2>
-                    <p class="text-xs text-gray-400">Gérez vos identifiants pour publier et chatter</p>
-                </div>
-
-                <form onsubmit="handleSaveProfile(event)" class="space-y-4">
+                <form id="signalForm" class="space-y-3">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1">Pseudo *</label>
-                        <input type="text" id="profPseudo" required class="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1">Numéro de Téléphone (Masqué aux tiers) *</label>
-                        <input type="tel" id="profPhone" required placeholder="+242 06..." class="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
-                        <span class="text-[10px] text-gray-500">Uniquement accessible par l'administrateur en cas d'urgence.</span>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1">Département de Résidence *</label>
-                        <select id="profDept" required class="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-yellow-400">
+                        <label class="text-xs text-gray-400 font-semibold mb-1 block">Département</label>
+                        <select id="deptSelect" class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-xl p-3 text-sm outline-none focus:border-emerald-500 transition">
                             <option value="Brazzaville">Brazzaville</option>
                             <option value="Pointe-Noire">Pointe-Noire</option>
-                            <option value="Kouilou">Kouilou</option>
-                            <option value="Niari">Niari</option>
                             <option value="Bouenza">Bouenza</option>
-                            <option value="Lékoumou">Lékoumou</option>
+                            <option value="Niari">Niari</option>
                             <option value="Pool">Pool</option>
-                            <option value="Plateaux">Plateaux</option>
                             <option value="Cuvette">Cuvette</option>
-                            <option value="Cuvette-Ouest">Cuvette-Ouest</option>
                             <option value="Sangha">Sangha</option>
+                            <option value="Plateaux">Plateaux</option>
                             <option value="Likouala">Likouala</option>
+                            <option value="Kouilou">Kouilou</option>
+                            <option value="Lékoumou">Lékoumou</option>
+                            <option value="Cuvette-Ouest">Cuvette-Ouest</option>
+                            <option value="Djoué-Léfini">Djoué-Léfini</option>
+                            <option value="Nkéni-Alima">Nkéni-Alima</option>
+                            <option value="Congo-Oubangui">Congo-Oubangui</option>
                         </select>
                     </div>
 
-                    <button type="submit" class="w-full bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-bold py-2.5 rounded-xl text-xs transition">
-                        Enregistrer les modifications
+                    <div>
+                        <label class="text-xs text-gray-400 font-semibold mb-1 block">Quartier / Avenue</label>
+                        <input type="text" id="districtInput" placeholder="Ex: Bacongo, Mpila, Tié-Tié..." required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-xl p-3 text-sm outline-none focus:border-emerald-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-gray-400 font-semibold mb-1 block">État du courant</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-red-500 transition">
+                                <input type="radio" name="status" value="cut" checked class="mr-1 accent-red-500">
+                                <span class="text-xs text-red-400 font-bold">🔴 Coupure</span>
+                            </label>
+                            <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-amber-500 transition">
+                                <input type="radio" name="status" value="instable" class="mr-1 accent-amber-500">
+                                <span class="text-xs text-amber-400 font-bold">🟡 Instable</span>
+                            </label>
+                            <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-emerald-500 transition">
+                                <input type="radio" name="status" value="ok" class="mr-1 accent-emerald-500">
+                                <span class="text-xs text-emerald-400 font-bold">🟢 Rétabli</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-gray-400 font-semibold mb-1 block">Commentaire / Précisions</label>
+                        <input type="text" id="commentInput" placeholder="Ex: Depuis 14h, oscillations..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-xl p-3 text-sm outline-none focus:border-emerald-500 transition">
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-extrabold p-3.5 rounded-xl transition shadow-lg shadow-emerald-500/20 text-sm">
+                        Publier sur le Réseau 📡
                     </button>
                 </form>
             </div>
-        </section>
+        </div>
 
-    </main>
+        <!-- SALONS DE DISCUSSION AGORA 242 & FIL DES PANNES -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- CHAT SPÉCIAL PAR VILLE & SALON -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col h-[480px] shadow-lg">
+                <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
+                    <h3 class="text-sm font-bold text-gray-200 flex items-center">
+                        <i class="fa-solid fa-comments text-emerald-400 mr-2 text-base"></i> Agora 242 (Chat en Direct)
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <select id="chatDeptSelect" onchange="switchChatRoom()" class="bg-gray-800 border border-gray-700 text-emerald-400 font-bold text-xs rounded-xl px-2.5 py-2 outline-none">
+                            <option value="Brazzaville">🏙️ Brazzaville</option>
+                            <option value="Pointe-Noire">🏙️ Pointe-Noire</option>
+                            <option value="Bouenza">🌆 Bouenza</option>
+                            <option value="Niari">🌆 Niari</option>
+                            <option value="Pool">🌆 Pool</option>
+                            <option value="Cuvette">🌆 Cuvette</option>
+                            <option value="Sangha">🌆 Sangha</option>
+                            <option value="Plateaux">🌆 Plateaux</option>
+                            <option value="Likouala">🌆 Likouala</option>
+                            <option value="Kouilou">🌆 Kouilou</option>
+                            <option value="Lékoumou">🌆 Lékoumou</option>
+                            <option value="Cuvette-Ouest">🌆 Cuvette-Ouest</option>
+                            <option value="Djoué-Léfini">🌆 Djoué-Léfini</option>
+                            <option value="Nkéni-Alima">🌆 Nkéni-Alima</option>
+                            <option value="Congo-Oubangui">🌆 Congo-Oubangui</option>
+                        </select>
+                        <select id="chatSalonSelect" onchange="switchChatRoom()" class="bg-gray-800 border border-gray-700 text-amber-400 font-bold text-xs rounded-xl px-2.5 py-2 outline-none">
+                            <option value="general">💬 Général</option>
+                            <option value="urgences">🚨 Pannes & Urgences</option>
+                            <option value="entraide">💡 Entraide & Conseils</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="chatMessages" class="flex-1 bg-gray-950/60 border border-gray-800 rounded-xl p-3 overflow-y-auto space-y-3 mb-3 text-xs custom-scrollbar"></div>
 
-    <!-- Footer with Official Signature -->
-    <footer class="bg-gray-900 border-t border-gray-800 py-6 mt-12">
-        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
-            <div class="flex items-center justify-center gap-2">
-                <span class="font-bold text-sm text-gray-200">Wapi Courant</span>
-                <div class="inline-flex items-center text-xs font-black px-1.5 py-0.5 rounded bg-gray-950 border border-gray-800">
-                    <span class="text-cgGreen">2</span><span class="text-cgYellow">4</span><span class="text-cgRed">2</span>
+                <!-- PRÉVISUALISATION PHOTO -->
+                <div id="imagePreviewContainer" class="hidden mb-2 relative inline-block">
+                    <img id="imagePreview" src="" class="h-16 rounded-xl border border-gray-700 object-cover">
+                    <button type="button" onclick="cancelImage()" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">✕</button>
+                </div>
+
+                <!-- BARRE DU CHAT MULTIMÉDIA -->
+                <form id="chatForm" class="flex items-center gap-2">
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelect(event)">
+                    
+                    <button type="button" onclick="document.getElementById('cameraInput').click()" class="bg-gray-800 hover:bg-gray-700 text-amber-400 border border-gray-700 p-2.5 rounded-xl text-xs transition flex items-center justify-center shadow" title="Ajouter une photo">
+                        <i class="fa-solid fa-camera text-base"></i>
+                    </button>
+
+                    <button type="button" id="recordBtn" onclick="toggleAudioRecording()" class="bg-gray-800 hover:bg-gray-700 text-red-400 border border-gray-700 p-2.5 rounded-xl text-xs transition flex items-center justify-center shadow" title="Note vocale">
+                        <i class="fa-solid fa-microphone text-base" id="recordIcon"></i>
+                    </button>
+
+                    <input type="text" id="chatInput" placeholder="Discutez en temps réel..." class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-emerald-500 transition">
+                    
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs transition shadow">Envoyer</button>
+                </form>
+            </div>
+
+            <!-- DERNIERS SIGNALEMENTS -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col h-[480px] shadow-lg">
+                <h3 class="text-sm font-bold text-gray-200 mb-3 flex items-center justify-between">
+                    <span><i class="fa-solid fa-bolt text-amber-400 mr-2 text-base"></i> Fil Global des Signalements</span>
+                </h3>
+                <div id="signalsList" class="flex-1 bg-gray-950/60 border border-gray-800 rounded-xl p-3 overflow-y-auto space-y-2.5 text-xs custom-scrollbar"></div>
+            </div>
+        </div>
+
+        <!-- STATISTIQUES & ANALYTIQUE (GRAPHIQUES PAR DÉPARTEMENT & QUARTIER) -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 shadow-lg">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+                <div>
+                    <h3 class="text-base font-extrabold text-white flex items-center">
+                        <i class="fa-solid fa-chart-pie text-emerald-400 mr-2 text-lg"></i> Base de Données & Statistiques en Direct
+                    </h3>
+                    <p class="text-xs text-gray-400">Analyse détaillée de la fréquence des pannes par département et par quartier.</p>
+                </div>
+                <div class="text-xs bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-xl font-bold text-emerald-400">
+                    Total Signalements : <span id="totalSignalsCount">0</span>
                 </div>
             </div>
-            <p class="text-xs text-gray-400">Plateforme collaborative de suivi et de cartographie en temps réel des pannes et rétablissements d'électricité en République du Congo.</p>
-            <p class="text-xs font-bold text-yellow-400 pt-1">By 13or_vie ⚡</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                <!-- GRAPHIQUE EN BARRES (PAR DÉPARTEMENT) -->
+                <div class="bg-gray-950/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center h-72">
+                    <canvas id="deptBarChart"></canvas>
+                </div>
+                <!-- GRAPHIQUE CIRCULAIRE (ÉTAT GLOBAL) -->
+                <div class="bg-gray-950/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center h-72">
+                    <canvas id="statusPieChart"></canvas>
+                </div>
+            </div>
         </div>
-    </footer>
 
-    <!-- LOGIC APPLICATION SCRIPT -->
+        <!-- FOOTER / DESCRIPTION & SIGNATURE -->
+        <footer class="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center space-y-2 shadow-lg">
+            <p class="text-xs text-gray-400 max-w-2xl mx-auto">
+                <strong class="text-gray-200">Wapi Courant 242</strong> est une plateforme de suivi communautaire et en temps réel des coupures et retours d'électricité à travers les 15 départements de la République du Congo. Ensemble, restons informés.
+            </p>
+            <div class="text-xs text-emerald-400 font-semibold pt-1 border-t border-gray-800/80">
+                By 13or_vie ⚡
+            </div>
+        </footer>
+
+    </div>
+
     <script>
-        // --- DEPARTMENTS COORDINATES CENTER ---
-        const DEPT_COORDS = {
+        // Synchronisation hybride BroadcastChannel (Temps réel inter-onglets et multi-appareils locaux instantanés)
+        const bc = new BroadcastChannel('wapi_courant_242_sync_channel');
+
+        let currentUser = JSON.parse(localStorage.getItem('wapi_user')) || null;
+
+        const deptCoords = {
             'Brazzaville': [-4.2634, 15.2429],
-            'Pointe-Noire': [-4.7692, 11.8664],
-            'Kouilou': [-4.3000, 11.9000],
-            'Niari': [-3.2500, 12.3000],
-            'Bouenza': [-4.1500, 13.5500],
-            'Lékoumou': [-3.0000, 13.5000],
-            'Pool': [-3.8000, 14.8000],
-            'Plateaux': [-2.0000, 15.5000],
-            'Cuvette': [-0.5000, 15.8000],
-            'Cuvette-Ouest': [0.0000, 14.5000],
-            'Sangha': [1.6000, 15.0000],
-            'Likouala': [2.5000, 17.5000]
+            'Pointe-Noire': [-4.7761, 11.8635],
+            'Bouenza': [-4.1531, 13.5500],
+            'Congo-Oubangui': [-1.1500, 16.2000],
+            'Cuvette': [-0.4819, 15.8999],
+            'Cuvette-Ouest': [0.0100, 14.8000],
+            'Djoué-Léfini': [-3.3000, 15.4000],
+            'Kouilou': [-4.4000, 11.9000],
+            'Lékoumou': [-3.1500, 13.3500],
+            'Likouala': [1.6333, 18.0667],
+            'Niari': [-4.2000, 12.7000],
+            'Nkéni-Alima': [-1.8000, 15.8000],
+            'Plateaux': [-2.5333, 15.3833],
+            'Pool': [-3.8000, 14.7000],
+            'Sangha': [1.6167, 16.0500]
         };
 
-        // --- GLOBAL STATE ---
-        let state = {
-            user: JSON.parse(localStorage.getItem('wapi_user')) || null,
-            reports: JSON.parse(localStorage.getItem('wapi_reports')) || [
-                { id: '1', status: 'Coupure', dept: 'Brazzaville', quartier: 'Poto-Poto', comment: 'Coupure générale depuis 10h ce matin.', author: 'Serge M.', time: 'Il y a 15 min', lat: -4.2634, lng: 15.2429 },
-                { id: '2', status: 'Instable', dept: 'Pointe-Noire', quartier: 'Tié-Tié', comment: 'Baisse de tension sévère, appareils débranchés.', author: 'Grace K.', time: 'Il y a 30 min', lat: -4.7692, lng: 11.8664 },
-                { id: '3', status: 'Rétabli', dept: 'Brazzaville', quartier: 'Makelekele', comment: 'Le courant est enfin revenu après 6 heures d absence !', author: 'Bienvenu', time: 'Il y a 1h', lat: -4.2650, lng: 15.2400 }
-            ],
-            chatMessages: JSON.parse(localStorage.getItem('wapi_chat')) || [
-                { id: 'c1', room: 'Général', author: 'Admin', text: 'Bienvenue sur le chat Wapi Courant 242 ! Échangez dans le respect.', time: '10:00', type: 'text' }
-            ],
-            currentRoom: 'Général',
-            pollVotes: JSON.parse(localStorage.getItem('wapi_poll')) || { yes: 12, no: 45, unstable: 28 },
-            map: null,
-            markersLayer: null,
-            chartInstance: null,
-            mediaRecorder: null,
-            audioChunks: []
+        let map = null;
+        let mapMarkers = [];
+        let deptBarChart = null;
+        let statusPieChart = null;
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let selectedImageData = null;
+
+        // Stockage local
+        let signals = JSON.parse(localStorage.getItem('wapi_signals')) || [
+            { id: 1, dept: 'Brazzaville', district: 'Bacongo', status: 'cut', comment: 'Coupure générale secteur', user: 'Admin_242', time: 'Il y a 10 min' },
+            { id: 2, dept: 'Pointe-Noire', district: 'Tié-Tié', status: 'ok', comment: 'Courant rétibli', user: 'Merveille', time: 'Il y a 25 min' }
+        ];
+
+        let votes = JSON.parse(localStorage.getItem('wapi_votes')) || { cut: 14, instable: 6, ok: 22 };
+
+        let chatMessages = JSON.parse(localStorage.getItem('wapi_chats')) || {
+            'Brazzaville_general': [
+                { user: 'Admin_242', text: 'Bienvenue sur le salon officiel de Brazzaville !', time: '10:00' }
+            ]
         };
 
-        // --- INITIALIZATION ON LOAD ---
-        window.onload = function() {
-            initUserUI();
-            initLeafletMap();
-            renderReports();
-            renderChat();
-            renderPoll();
-            initChart();
-            checkNotificationStatus();
-        };
-
-        // --- NOTIFICATION SYSTEM (System Push + Toasts) ---
-        function notifyAction(title, message, type = 'info') {
-            // 1. In-App Toast Notification
-            createToast(title, message, type);
-
-            // 2. Native System Notification (if permission granted)
-            if ('Notification' in window && Notification.permission === 'granted') {
-                try {
-                    new Notification(`Wapi Courant 242: ${title}`, {
-                        body: message,
-                        icon: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png'
-                    });
-                } catch (e) { console.error('Push notification error:', e); }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!currentUser || !currentUser.pseudo) {
+                document.getElementById('authModal').classList.remove('hidden');
+            } else {
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
             }
+
+            document.getElementById('authForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const pseudo = document.getElementById('authPseudo').value.trim();
+                const phone = document.getElementById('authPhone').value.trim();
+                const dept = document.getElementById('authDept').value;
+
+                if (!pseudo || !phone) return;
+
+                currentUser = { pseudo, phone, dept };
+                localStorage.setItem('wapi_user', JSON.stringify(currentUser));
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
+
+                triggerLocalNotification("Connexion Réussie", `Bienvenue ${pseudo} sur Wapi Courant 242 ⚡`);
+            });
+
+            initMap();
+            initCharts();
+            renderSignals();
+            renderVotes();
+            renderChatMessages();
+
+            document.getElementById('signalForm').addEventListener('submit', sendSignal);
+            document.getElementById('chatForm').addEventListener('submit', sendChatMessage);
+            checkNotificationSupport();
+
+            // Écouteur de synchronisation instantanée inter-onglets
+            bc.onmessage = (event) => {
+                const data = event.data;
+                if (data.type === 'NEW_SIGNAL') {
+                    signals = data.signals;
+                    renderSignals();
+                    triggerLocalNotification(`Panne: ${data.signal.dept}`, `${data.signal.district} - ${data.signal.status === 'cut' ? 'Coupure 🔴' : 'Mise à jour'}`);
+                } else if (data.type === 'NEW_CHAT') {
+                    chatMessages = data.chats;
+                    renderChatMessages();
+                    if (data.msg.user !== currentUser?.pseudo) {
+                        triggerLocalNotification(`Message Agora`, `${data.msg.user}: ${data.msg.text || 'Média'}`);
+                    }
+                } else if (data.type === 'NEW_VOTE') {
+                    votes = data.votes;
+                    renderVotes();
+                }
+            };
+        });
+
+        function logoutUser() {
+            localStorage.removeItem('wapi_user');
+            location.reload();
         }
 
-        function createToast(title, message, type) {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            
-            let bgBorder = 'bg-gray-900 border-gray-700 text-gray-100';
-            let icon = 'fa-solid fa-bell text-yellow-400';
-
-            if (type === 'success') { bgBorder = 'bg-gray-900 border-emerald-500/50 text-emerald-300'; icon = 'fa-solid fa-circle-check text-emerald-400'; }
-            if (type === 'error') { bgBorder = 'bg-gray-900 border-red-500/50 text-red-300'; icon = 'fa-solid fa-circle-xmark text-red-400'; }
-            if (type === 'warning') { bgBorder = 'bg-gray-900 border-yellow-500/50 text-yellow-300'; icon = 'fa-solid fa-triangle-exclamation text-yellow-400'; }
-
-            toast.className = `pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border shadow-2xl transition-all duration-300 transform translate-x-10 opacity-0 ${bgBorder}`;
-            toast.innerHTML = `
-                <i class="${icon} text-base mt-0.5"></i>
-                <div class="flex-grow text-xs">
-                    <h4 class="font-bold mb-0.5">${title}</h4>
-                    <p class="text-gray-400 text-[11px]">${message}</p>
-                </div>
-                <button onclick="this.parentElement.remove()" class="text-gray-500 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
-            `;
-
-            container.appendChild(toast);
-
-            // Animate in
-            setTimeout(() => {
-                toast.classList.remove('translate-x-10', 'opacity-0');
-            }, 10);
-
-            // Auto dismiss
-            setTimeout(() => {
-                toast.classList.add('translate-x-10', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }, 4500);
+        function checkNotificationSupport() {
+            if (!("Notification" in window)) {
+                document.getElementById('notifStatusText').innerText = "Non supporté";
+                document.getElementById('notifBadgeBtn').style.opacity = "0.5";
+            } else if (Notification.permission === "granted") {
+                document.getElementById('notifStatusText').innerText = "Alertes Actives";
+                document.getElementById('notifBadgeBtn').classList.add('border-emerald-500', 'text-emerald-400');
+            }
         }
 
         function requestNotificationPermission() {
-            if (!('Notification' in window)) {
-                notifyAction('Non supporté', 'Les notifications Web ne sont pas supportées sur ce navigateur.', 'warning');
+            if (!("Notification" in window)) {
+                alert("Les notifications In-App sont actives sur votre appareil !");
                 return;
             }
             Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    notifyAction('Notifications activées', 'Vous recevrez désormais les alertes directes sur votre appareil.', 'success');
-                    checkNotificationStatus();
+                if (permission === "granted") {
+                    document.getElementById('notifStatusText').innerText = "Alertes Actives";
+                    document.getElementById('notifBadgeBtn').classList.add('border-emerald-500', 'text-emerald-400');
+                    new Notification("Wapi Courant 242", { body: "Notifications activées avec succès !" });
                 }
             });
         }
 
-        function checkNotificationStatus() {
-            const btn = document.getElementById('notifPermBtn');
-            const txt = document.getElementById('notifPermText');
-            if ('Notification' in window && Notification.permission === 'granted') {
-                txt.innerText = 'Notifs Activées';
-                btn.classList.add('border-emerald-500/50', 'text-emerald-400');
+        function triggerLocalNotification(title, body) {
+            const container = document.getElementById('toastContainer');
+            if (container) {
+                const toast = document.createElement('div');
+                toast.className = 'bg-gray-900 border border-emerald-500/50 text-white p-3 rounded-2xl shadow-2xl pointer-events-auto flex items-center space-x-3 text-xs animate-bounce max-w-sm';
+                toast.innerHTML = `
+                    <div class="text-emerald-400 text-lg">⚡</div>
+                    <div>
+                        <strong class="block text-emerald-400 font-bold">${title}</strong>
+                        <span class="text-gray-300">${body}</span>
+                    </div>
+                `;
+                container.appendChild(toast);
+                setTimeout(() => { toast.remove(); }, 5000);
+            }
+
+            if (("Notification" in window) && Notification.permission === "granted") {
+                try {
+                    new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/3103/3103446.png" });
+                } catch(e) {}
             }
         }
 
-        // --- MAP SYSTEM (LEAFLET + JITTERING) ---
-        function initLeafletMap() {
-            // Center default on Brazzaville
-            state.map = L.map('map').setView(DEPT_COORDS['Brazzaville'], 12);
-
-            // Free OSM Tiles
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([-1.5, 15.5], 6);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 18
-            }).addTo(state.map);
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
 
-            state.markersLayer = L.layerGroup().addTo(state.map);
-            updateMapMarkers();
+            setTimeout(() => { if (map) map.invalidateSize(); }, 400);
         }
 
-        function getJitteredCoords(deptName) {
-            const base = DEPT_COORDS[deptName] || DEPT_COORDS['Brazzaville'];
-            // Micro-jittering (random shift of ~500m to 1km) to avoid marker overlap
-            const jitterLat = (Math.random() - 0.5) * 0.025;
-            const jitterLng = (Math.random() - 0.5) * 0.025;
-            return [base[0] + jitterLat, base[1] + jitterLng];
-        }
-
-        function updateMapMarkers(filteredDept = 'ALL') {
-            state.markersLayer.clearLayers();
-
-            state.reports.forEach(report => {
-                if (filteredDept !== 'ALL' && report.dept !== filteredDept) return;
-
-                let markerColor = '#ef4444'; // Red Coupure
-                if (report.status === 'Instable') markerColor = '#eab308'; // Yellow
-                if (report.status === 'Rétabli') markerColor = '#10b981'; // Green
-
-                const customHtmlIcon = L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `<div style="background-color: ${markerColor}; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #111827; box-shadow: 0 0 10px ${markerColor}"></div>`,
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                });
-
-                const lat = report.lat || DEPT_COORDS[report.dept][0];
-                const lng = report.lng || DEPT_COORDS[report.dept][1];
-
-                const marker = L.marker([lat, lng], { icon: customHtmlIcon });
-
-                const popupContent = `
-                    <div class="custom-leaflet-popup p-2 min-w-[180px]">
-                        <div class="font-bold text-xs text-yellow-400 border-b border-gray-700 pb-1 mb-1">${report.dept} - ${report.quartier}</div>
-                        <div class="text-[11px] mb-1">État: <strong class="text-white">${report.status}</strong></div>
-                        ${report.comment ? `<p class="text-[10px] text-gray-300 italic mb-1 border-l-2 border-gray-600 pl-1.5">${report.comment}</p>` : ''}
-                        <div class="text-[9px] text-gray-400 flex justify-between pt-1">
-                            <span>Par: ${report.author}</span>
-                            <span>${report.time}</span>
-                        </div>
-                    </div>
-                `;
-
-                marker.bindPopup(popupContent);
-                state.markersLayer.addLayer(marker);
-            });
-        }
-
-        function filterMapByDept() {
-            const dept = document.getElementById('mapFilterDept').value;
-            updateMapMarkers(dept);
-            if (dept !== 'ALL' && DEPT_COORDS[dept]) {
-                state.map.flyTo(DEPT_COORDS[dept], 11);
-            }
-        }
-
-        function resetMapView() {
-            document.getElementById('mapFilterDept').value = 'ALL';
-            updateMapMarkers('ALL');
-            state.map.flyTo(DEPT_COORDS['Brazzaville'], 7);
-        }
-
-        // --- REPORT MANAGEMENT ---
-        function handleReportSubmit(e) {
-            e.preventDefault();
-            if (!state.user) {
-                notifyAction('Identification Requise', 'Veuillez configurer votre profil citoyen avant de signaler.', 'warning');
-                switchTab('profile');
-                return;
-            }
-
-            const status = document.querySelector('input[name="status"]:checked').value;
-            const dept = document.getElementById('reportDept').value;
-            const quartier = document.getElementById('reportQuartier').value.trim();
-            const comment = document.getElementById('reportComment').value.trim();
-
-            const coords = getJitteredCoords(dept);
-
-            const newReport = {
-                id: Date.now().toString(),
-                status,
-                dept,
-                quartier,
-                comment,
-                author: state.user.pseudo,
-                time: 'À l\'instant',
-                lat: coords[0],
-                lng: coords[1]
-            };
-
-            state.reports.unshift(newReport);
-            localStorage.setItem('wapi_reports', JSON.stringify(state.reports));
-
-            renderReports();
-            updateMapMarkers();
-            updateChart();
-            
-            // Pan Map to new report
-            state.map.flyTo([coords[0], coords[1]], 13);
-
-            notifyAction('Signalement Publié', `Signalement ${status} ajouté pour ${quartier} (${dept})`, 'success');
-            
-            document.getElementById('reportForm').reset();
-            switchTab('dashboard');
-        }
-
-        function renderReports() {
-            const container = document.getElementById('reportsList');
-            container.innerHTML = '';
-
-            let cCoupure = 0, cInstable = 0, cRetabli = 0;
-
-            state.reports.forEach(r => {
-                if (r.status === 'Coupure') cCoupure++;
-                if (r.status === 'Instable') cInstable++;
-                if (r.status === 'Rétabli') cRetabli++;
-
-                let badgeClass = 'bg-red-500/10 text-red-400 border-red-500/30';
-                if (r.status === 'Instable') badgeClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
-                if (r.status === 'Rétabli') badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-
-                const card = document.createElement('div');
-                card.className = 'bg-gray-950 p-3 rounded-xl border border-gray-800 hover:border-gray-700 transition flex items-start justify-between gap-3 text-xs';
-                card.innerHTML = `
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded border ${badgeClass} font-bold text-[10px]">${r.status}</span>
-                            <span class="font-bold text-gray-200">${r.dept} - ${r.quartier}</span>
-                        </div>
-                        ${r.comment ? `<p class="text-gray-400 text-[11px]">${r.comment}</p>` : ''}
-                        <div class="text-[10px] text-gray-500 flex items-center gap-3">
-                            <span><i class="fa-solid fa-user text-gray-600 mr-1"></i>${r.author}</span>
-                            <span><i class="fa-solid fa-clock text-gray-600 mr-1"></i>${r.time}</span>
-                        </div>
-                    </div>
-                    <button onclick="zoomToReport(${r.lat}, ${r.lng})" class="text-xs bg-gray-900 hover:bg-gray-800 text-yellow-400 p-2 rounded-lg border border-gray-800 transition" title="Voir sur la carte">
-                        <i class="fa-solid fa-location-crosshairs"></i>
-                    </button>
-                `;
-                container.appendChild(card);
+        function initCharts() {
+            const barCtx = document.getElementById('deptBarChart').getContext('2d');
+            deptBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(deptCoords),
+                    datasets: [{
+                        label: 'Signalements par Département',
+                        data: new Array(Object.keys(deptCoords).length).fill(0),
+                        backgroundColor: '#10b981',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+                    }
+                }
             });
 
-            document.getElementById('countCoupure').innerText = cCoupure;
-            document.getElementById('countInstable').innerText = cInstable;
-            document.getElementById('countRetabli').innerText = cRetabli;
-        }
-
-        function zoomToReport(lat, lng) {
-            switchTab('dashboard');
-            state.map.flyTo([lat, lng], 14);
-        }
-
-        // --- CHAT SYSTEM & AUDIO RECORDER ---
-        function switchChatRoom(roomName) {
-            state.currentRoom = roomName;
-            document.querySelectorAll('.chat-room-btn').forEach(btn => {
-                btn.classList.remove('bg-gray-800', 'text-yellow-400', 'font-bold');
-                btn.classList.add('text-gray-400');
-            });
-            const activeBtn = document.getElementById(`room-${roomName}`);
-            if (activeBtn) activeBtn.classList.add('bg-gray-800', 'text-yellow-400', 'font-bold');
-            document.getElementById('currentRoomTitle').innerText = `Salon ${roomName}`;
-            renderChat();
-        }
-
-        function handleSendChatMessage(e) {
-            e.preventDefault();
-            if (!state.user) {
-                notifyAction('Identification Requise', 'Veuillez vous identifier dans le profil pour tchatter.', 'warning');
-                switchTab('profile');
-                return;
-            }
-
-            const input = document.getElementById('chatInputText');
-            const text = input.value.trim();
-            if (!text) return;
-
-            const msg = {
-                id: Date.now().toString(),
-                room: state.currentRoom,
-                author: state.user.pseudo,
-                text,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                type: 'text'
-            };
-
-            state.chatMessages.push(msg);
-            localStorage.setItem('wapi_chat', JSON.stringify(state.chatMessages));
-            input.value = '';
-            renderChat();
-
-            notifyAction('Message Envoyé', `${state.user.pseudo} dans #${state.currentRoom}: "${text.substring(0, 20)}..."`, 'info');
-        }
-
-        function handleChatImageUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (!state.user) {
-                notifyAction('Identification Requise', 'Veuillez vous identifier pour envoyer des médias.', 'warning');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const msg = {
-                    id: Date.now().toString(),
-                    room: state.currentRoom,
-                    author: state.user.pseudo,
-                    image: event.target.result,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    type: 'image'
-                };
-                state.chatMessages.push(msg);
-                localStorage.setItem('wapi_chat', JSON.stringify(state.chatMessages));
-                renderChat();
-                notifyAction('Photo Partagée', 'Photo transmise dans le chat communautaire.', 'info');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function toggleAudioRecording() {
-            if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
-                stopAudioRecording();
-            } else {
-                startAudioRecording();
-            }
-        }
-
-        function startAudioRecording() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                notifyAction('Erreur Audio', 'Votre navigateur ne supporte pas le micro.', 'error');
-                return;
-            }
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    state.mediaRecorder = new MediaRecorder(stream);
-                    state.audioChunks = [];
-                    state.mediaRecorder.ondataavailable = e => state.audioChunks.push(e.data);
-                    state.mediaRecorder.onstop = saveAudioMessage;
-                    state.mediaRecorder.start();
-                    document.getElementById('audioRecordingBar').classList.remove('hidden');
-                })
-                .catch(() => notifyAction('Accès Micro Refusé', 'Autorisez le micro pour enregistrer.', 'warning'));
-        }
-
-        function stopAudioRecording() {
-            if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
-                state.mediaRecorder.stop();
-                document.getElementById('audioRecordingBar').classList.add('hidden');
-            }
-        }
-
-        function saveAudioMessage() {
-            const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const msg = {
-                    id: Date.now().toString(),
-                    room: state.currentRoom,
-                    author: state.user ? state.user.pseudo : 'Anonyme',
-                    audioUrl: reader.result,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    type: 'audio'
-                };
-                state.chatMessages.push(msg);
-                localStorage.setItem('wapi_chat', JSON.stringify(state.chatMessages));
-                renderChat();
-                notifyAction('Vocal envoyé', 'Votre note vocale a été publiée.', 'info');
-            };
-            reader.readAsDataURL(audioBlob);
-        }
-
-        function renderChat() {
-            const container = document.getElementById('chatMessages');
-            container.innerHTML = '';
-
-            const filtered = state.chatMessages.filter(m => m.room === state.currentRoom);
-
-            filtered.forEach(m => {
-                const bubble = document.createElement('div');
-                bubble.className = 'bg-gray-950 p-3 rounded-xl border border-gray-800 text-xs max-w-[85%] space-y-1';
-                
-                let content = '';
-                if (m.type === 'text') content = `<p class="text-gray-200">${m.text}</p>`;
-                if (m.type === 'image') content = `<img src="${m.image}" class="rounded-lg max-h-48 object-cover border border-gray-800 mb-1">`;
-                if (m.type === 'audio') content = `<audio controls src="${m.audioUrl}" class="w-full h-8 mt-1"></audio>`;
-
-                bubble.innerHTML = `
-                    <div class="flex items-center justify-between text-[10px] text-yellow-400 font-bold gap-4">
-                        <span>${m.author}</span>
-                        <span class="text-gray-500 font-normal">${m.time}</span>
-                    </div>
-                    ${content}
-                `;
-                container.appendChild(bubble);
-            });
-
-            container.scrollTop = container.scrollHeight;
-        }
-
-        // --- POLL SYSTEM ---
-        function votePoll(option) {
-            state.pollVotes[option]++;
-            localStorage.setItem('wapi_poll', JSON.stringify(state.pollVotes));
-            renderPoll();
-            notifyAction('Vote Enregistré', `Merci pour votre participation au sondage éclair.`, 'success');
-        }
-
-        function renderPoll() {
-            document.getElementById('pollCountYes').innerText = state.pollVotes.yes;
-            document.getElementById('pollCountNo').innerText = state.pollVotes.no;
-            document.getElementById('pollCountUnstable').innerText = state.pollVotes.unstable;
-        }
-
-        // --- STATS CHART (CHART.JS) ---
-        function initChart() {
-            const ctx = document.getElementById('statusChart').getContext('2d');
-            state.chartInstance = new Chart(ctx, {
+            const pieCtx = document.getElementById('statusPieChart').getContext('2d');
+            statusPieChart = new Chart(pieCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Coupure 🔴', 'Instable 🟡', 'Rétabli 🟢'],
+                    labels: ['🔴 Coupures', '🟡 Instables', '🟢 Rétablissements'],
                     datasets: [{
-                        data: [
-                            state.reports.filter(r => r.status === 'Coupure').length,
-                            state.reports.filter(r => r.status === 'Instable').length,
-                            state.reports.filter(r => r.status === 'Rétabli').length
-                        ],
-                        backgroundColor: ['#ef4444', '#eab308', '#10b981'],
+                        data: [0, 0, 0],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
                         borderWidth: 0
                     }]
                 },
@@ -919,114 +568,270 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { labels: { color: '#9ca3af', font: { family: 'Inter', size: 11 } } }
+                        legend: { position: 'bottom', labels: { color: '#e2e8f0', font: { size: 10 } } }
                     }
                 }
             });
-
-            renderTopNeighborhoods();
         }
 
-        function updateChart() {
-            if (!state.chartInstance) return;
-            state.chartInstance.data.datasets[0].data = [
-                state.reports.filter(r => r.status === 'Coupure').length,
-                state.reports.filter(r => r.status === 'Instable').length,
-                state.reports.filter(r => r.status === 'Rétabli').length
-            ];
-            state.chartInstance.update();
-            renderTopNeighborhoods();
-        }
+        function updateChartsAndMap() {
+            document.getElementById('totalSignalsCount').innerText = signals.length;
 
-        function renderTopNeighborhoods() {
-            const container = document.getElementById('topNeighborhoods');
-            container.innerHTML = '';
+            const deptCounts = {};
+            Object.keys(deptCoords).forEach(d => deptCounts[d] = 0);
+            
+            let cutTotal = 0, instableTotal = 0, okTotal = 0;
 
-            const counts = {};
-            state.reports.forEach(r => {
-                const key = `${r.quartier} (${r.dept})`;
-                counts[key] = (counts[key] || 0) + 1;
+            signals.forEach(s => {
+                if (deptCounts[s.dept] !== undefined) deptCounts[s.dept]++;
+                if (s.status === 'cut') cutTotal++;
+                else if (s.status === 'instable') instableTotal++;
+                else okTotal++;
             });
 
-            const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            deptBarChart.data.datasets[0].data = Object.keys(deptCoords).map(d => deptCounts[d]);
+            deptBarChart.update();
 
-            if (sorted.length === 0) {
-                container.innerHTML = '<p class="text-xs text-gray-500">Aucune donnée actuellement.</p>';
+            statusPieChart.data.datasets[0].data = [cutTotal, instableTotal, okTotal];
+            statusPieChart.update();
+
+            if (map) {
+                mapMarkers.forEach(m => map.removeLayer(m));
+                mapMarkers = [];
+                signals.forEach((sig, idx) => {
+                    let base = deptCoords[sig.dept] || [-4.2634, 15.2429];
+                    const jitterLat = base[0] + (Math.sin(idx + 1) * 0.035);
+                    const jitterLng = base[1] + (Math.cos(idx + 1) * 0.035);
+                    
+                    let markerClass = 'pulse-green', badge = '🟢 Rétabli';
+                    if (sig.status === 'cut') { markerClass = 'pulse-marker'; badge = '🔴 Coupure'; }
+                    else if (sig.status === 'instable') { markerClass = 'pulse-yellow'; badge = '🟡 Instable'; }
+
+                    const icon = L.divIcon({
+                        className: 'custom-icon',
+                        html: `<div class="${markerClass} w-4 h-4 border-2 border-white shadow-lg"></div>`
+                    });
+                    const marker = L.marker([jitterLat, jitterLng], { icon }).addTo(map);
+                    marker.bindPopup(`<b>${sig.dept} (${sig.district})</b><br><b>${badge}</b><br>${sig.comment || ''}<br><small>Par: ${sig.user}</small>`);
+                    mapMarkers.push(marker);
+                });
+            }
+        }
+
+        function renderSignals() {
+            updateChartsAndMap();
+            localStorage.setItem('wapi_signals', JSON.stringify(signals));
+
+            const list = document.getElementById('signalsList');
+            if (signals.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement récent...</p>';
                 return;
             }
 
-            sorted.forEach(([name, count], index) => {
-                const row = document.createElement('div');
-                row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-gray-950 border border-gray-800 text-xs';
-                row.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-md bg-gray-800 font-bold text-yellow-400 flex items-center justify-center text-[10px]">${index + 1}</span>
-                        <span class="text-gray-200 font-medium">${name}</span>
+            list.innerHTML = signals.slice().reverse().map(s => {
+                let badgeStyle = 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20', badgeText = '🟢 Rétabli';
+                if (s.status === 'cut') { badgeStyle = 'text-red-400 bg-red-500/10 border border-red-500/20'; badgeText = '🔴 Coupure'; }
+                else if (s.status === 'instable') { badgeStyle = 'text-amber-400 bg-amber-500/10 border border-amber-500/20'; badgeText = '🟡 Instable'; }
+
+                return `
+                    <div class="bg-gray-800/60 p-2.5 rounded-xl flex justify-between items-center shadow">
+                        <div>
+                            <strong class="text-white">${s.dept} - ${s.district}</strong>
+                            <p class="text-gray-300">${s.comment || 'Situation électricité'}</p>
+                            <span class="text-gray-500 text-[10px]">Par ${s.user} (${s.time || 'Récemment'})</span>
+                        </div>
+                        <span class="${badgeStyle} px-2 py-1 rounded-xl font-bold">${badgeText}</span>
                     </div>
-                    <span class="font-bold text-red-400">${count} signalement(s)</span>
                 `;
-                container.appendChild(row);
-            });
+            }).join('');
         }
 
-        // --- PROFILE / USER SYSTEM ---
-        function handleSaveProfile(e) {
+        function sendSignal(e) {
             e.preventDefault();
-            const pseudo = document.getElementById('profPseudo').value.trim();
-            const phone = document.getElementById('profPhone').value.trim();
-            const dept = document.getElementById('profDept').value;
+            if (!currentUser) return;
+            const dept = document.getElementById('deptSelect').value;
+            const district = document.getElementById('districtInput').value.trim();
+            const status = document.querySelector('input[name="status"]:checked').value;
+            const comment = document.getElementById('commentInput').value.trim();
 
-            state.user = { pseudo, phone, dept };
-            localStorage.setItem('wapi_user', JSON.stringify(state.user));
+            const newSig = {
+                id: Date.now(),
+                dept, district, status, comment,
+                user: currentUser.pseudo,
+                phone: currentUser.phone,
+                time: 'À l'instant'
+            };
 
-            initUserUI();
-            notifyAction('Profil Mis à Jour', `Identifiants enregistrés avec succès (${pseudo}).`, 'success');
-            switchTab('dashboard');
+            signals.push(newSig);
+            renderSignals();
+
+            bc.postMessage({ type: 'NEW_SIGNAL', signals, signal: newSig });
+
+            document.getElementById('districtInput').value = '';
+            document.getElementById('commentInput').value = '';
+            triggerLocalNotification("Signalement Publié", `Panne signalée à ${dept} (${district})`);
         }
 
-        function initUserUI() {
-            if (state.user) {
-                document.getElementById('userBadge').classList.remove('hidden');
-                document.getElementById('userBadge').classList.add('flex');
-                document.getElementById('loginBtnNav').classList.add('hidden');
-                document.getElementById('navUserPseudo').innerText = state.user.pseudo;
-                document.getElementById('navUserDept').innerText = state.user.dept;
-
-                document.getElementById('profPseudo').value = state.user.pseudo;
-                document.getElementById('profPhone').value = state.user.phone;
-                document.getElementById('profDept').value = state.user.dept;
-            }
+        function castVote(status) {
+            if (!currentUser) return;
+            votes[status] = (votes[status] || 0) + 1;
+            renderVotes();
+            bc.postMessage({ type: 'NEW_VOTE', votes });
+            triggerLocalNotification("Vote enregistré", `Votre avis (${status}) a été pris en compte.`);
         }
 
-        function openLoginModal() {
-            switchTab('profile');
+        function renderVotes() {
+            localStorage.setItem('wapi_votes', JSON.stringify(votes));
+            document.getElementById('voteCutCount').innerText = votes.cut || 0;
+            if(document.getElementById('voteInstableCount')) document.getElementById('voteInstableCount').innerText = votes.instable || 0;
+            document.getElementById('voteOkCount').innerText = votes.ok || 0;
         }
 
-        // --- NAVIGATION TABS SWITCHER ---
-        function switchTab(tabId) {
-            ['dashboard', 'report', 'chat', 'stats', 'profile'].forEach(id => {
-                const view = document.getElementById(`view-${id}`);
-                const tabBtn = document.getElementById(`tab-${id}`);
-                
-                if (view) view.classList.add('hidden');
-                if (tabBtn) {
-                    tabBtn.classList.remove('bg-yellow-400', 'text-gray-950', 'font-bold');
-                    tabBtn.classList.add('text-gray-400');
-                }
+        function getChatRoomKey() {
+            const dept = document.getElementById('chatDeptSelect').value;
+            const salon = document.getElementById('chatSalonSelect').value;
+            return `${dept}_${salon}`;
+        }
+
+        function switchChatRoom() {
+            renderChatMessages();
+        }
+
+        function renderChatMessages() {
+            const key = getChatRoomKey();
+            const msgs = chatMessages[key] || [];
+            localStorage.setItem('wapi_chats', JSON.stringify(chatMessages));
+
+            const container = document.getElementById('chatMessages');
+            let html = '';
+
+            msgs.forEach(msg => {
+                let content = '';
+                if (msg.text) content += `<span>${msg.text}</span>`;
+                if (msg.image) content += `<div class="mt-1"><img src="${msg.image}" class="max-h-36 rounded-xl border border-gray-700 object-cover"></div>`;
+                if (msg.audio) content += `<div class="mt-1"><audio controls src="${msg.audio}" class="h-7 max-w-full"></audio></div>`;
+
+                html += `
+                    <div class="bg-gray-800/60 border border-gray-800/80 p-2.5 rounded-xl space-y-1 shadow">
+                        <div class="flex justify-between text-[10px] text-gray-400">
+                            <span class="text-emerald-400 font-bold">${msg.user}</span>
+                            <span>${msg.time || ''}</span>
+                        </div>
+                        <div class="text-gray-200">${content}</div>
+                    </div>
+                `;
             });
+            container.innerHTML = html || `<p class="text-gray-500 italic">Aucun message dans ce salon. Soyez le premier à écrire !</p>`;
+            container.scrollTop = container.scrollHeight;
+        }
 
-            const activeView = document.getElementById(`view-${tabId}`);
-            const activeTabBtn = document.getElementById(`tab-${tabId}`);
+        function sendChatMessage(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text && !selectedImageData) return;
 
-            if (activeView) activeView.classList.remove('hidden');
-            if (activeTabBtn) {
-                activeTabBtn.classList.remove('text-gray-400');
-                activeTabBtn.classList.add('bg-yellow-400', 'text-gray-950', 'font-bold');
-            }
+            const key = getChatRoomKey();
+            if (!chatMessages[key]) chatMessages[key] = [];
 
-            // Invalidate Leaflet Map Size when switching back to dashboard
-            if (tabId === 'dashboard' && state.map) {
-                setTimeout(() => state.map.invalidateSize(), 100);
+            const newMsg = {
+                user: currentUser.pseudo,
+                phone: currentUser.phone,
+                text: text || '',
+                image: selectedImageData || null,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            chatMessages[key].push(newMsg);
+            renderChatMessages();
+
+            bc.postMessage({ type: 'NEW_CHAT', chats: chatMessages, msg: newMsg });
+
+            input.value = '';
+            cancelImage();
+        }
+
+        function handleImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxW = 500;
+                    const scale = maxW / img.width;
+                    canvas.width = maxW;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    selectedImageData = canvas.toDataURL('image/jpeg', 0.6);
+                    document.getElementById('imagePreview').src = selectedImageData;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function cancelImage() {
+            selectedImageData = null;
+            document.getElementById('cameraInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+        }
+
+        async function toggleAudioRecording() {
+            const recBtn = document.getElementById('recordBtn');
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    let mimeType = 'audio/webm';
+                    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                        if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+                        else mimeType = '';
+                    }
+                    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            if (!currentUser) return;
+                            const key = getChatRoomKey();
+                            if (!chatMessages[key]) chatMessages[key] = [];
+
+                            const newMsg = {
+                                user: currentUser.pseudo,
+                                phone: currentUser.phone,
+                                audio: reader.result,
+                                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            };
+
+                            chatMessages[key].push(newMsg);
+                            renderChatMessages();
+                            bc.postMessage({ type: 'NEW_CHAT', chats: chatMessages, msg: newMsg });
+                        };
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recBtn.classList.replace('text-red-400', 'text-white');
+                    recBtn.classList.add('bg-red-600', 'animate-pulse');
+                } catch (err) {
+                    alert("Accès micro refusé ou non supporté.");
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recBtn.classList.replace('text-white', 'text-red-400');
+                recBtn.classList.remove('bg-red-600', 'animate-pulse');
             }
         }
     </script>
