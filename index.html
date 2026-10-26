@@ -12,6 +12,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Firebase SDK (v9 compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -19,19 +21,18 @@
 
     <style>
         body {
-            background-color: #0b0f19;
+            background-color: #070913;
             color: #e2e8f0;
             font-family: system-ui, -apple-system, sans-serif;
         }
-        #map-container {
+        #map-wrapper {
             position: relative;
             width: 100%;
-            min-height: 420px;
+            height: 450px;
         }
         #map {
-            width: 100% !important;
-            height: 420px !important;
-            min-height: 420px !important;
+            width: 100%;
+            height: 100%;
             border-radius: 12px;
             z-index: 10;
         }
@@ -55,94 +56,91 @@
             70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
-        .glow-button {
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
-        }
-        /* Custom scrollbar for chat and signal list */
-        ::-webkit-scrollbar {
+        .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
-        ::-webkit-scrollbar-track {
-            background: #111827;
-            border-radius: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #374151;
-            border-radius: 8px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #4b5563;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #374151;
+            border-radius: 4px;
         }
     </style>
 </head>
-<body class="p-2 md:p-6 min-h-screen flex flex-col justify-between">
+<body class="p-3 md:p-6 min-h-screen flex flex-col justify-between space-y-6">
 
-    <div class="max-w-6xl mx-auto w-full space-y-6">
+    <div class="max-w-7xl mx-auto w-full space-y-6">
 
-        <!-- 1. HEADER & GESTION PROFIL -->
-        <header class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
+        <!-- HEADER AMÉLIORÉ -->
+        <header class="bg-gradient-to-r from-gray-900 via-gray-900 to-gray-950 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-wrap justify-between items-center gap-4 shadow-xl">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-gray-950 font-bold text-xl shadow-lg shadow-emerald-500/30">
+                <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-gray-950 font-extrabold text-2xl shadow-lg shadow-emerald-500/30">
                     ⚡
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-wide text-white">Wapi Courant 242</h1>
-                    <p class="text-xs text-emerald-400 font-medium">Suivi Communautaire de l'Électricité au Congo</p>
+                    <h1 class="text-2xl font-black tracking-wide text-white">Wapi Courant <span class="text-emerald-400">242</span></h1>
+                    <p class="text-xs text-emerald-400 font-semibold tracking-wide">Suivi Communautaire de l'Électricité au Congo</p>
                 </div>
             </div>
 
-            <button type="button" onclick="openProfileModal()" class="flex items-center bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg text-sm transition">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-                <span id="headerUserPseudo">Citoyen</span>
-                <i class="fa-solid fa-user-gear ml-2 text-gray-400"></i>
-            </button>
+            <div class="flex items-center gap-3">
+                <!-- NOTIFICATION TOAST BADGE -->
+                <button type="button" onclick="requestNotificationPermission()" id="notifBadgeBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-bell text-amber-400"></i>
+                    <span id="notifStatusText">Activer Alertes</span>
+                </button>
+
+                <button type="button" onclick="openProfileModal()" class="flex items-center bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-4 py-2 rounded-xl text-sm transition shadow-inner">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+                    <span id="headerUserPseudo" class="font-bold">Citoyen</span>
+                    <i class="fa-solid fa-user-gear ml-2 text-gray-400"></i>
+                </button>
+            </div>
         </header>
 
-        <!-- 2. SONDAGE ÉCLAIR / TENDANCE DU RÉSEAU -->
-        <div class="bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- SONDAGE ÉCLAIR -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
             <div class="flex items-center space-x-3">
-                <div class="text-2xl">📊</div>
+                <div class="text-3xl">📊</div>
                 <div>
                     <h2 class="text-sm font-bold text-white">Tendance du Réseau en Direct</h2>
-                    <p class="text-xs text-gray-400">Exprimez-vous en un clic : comment est la situation chez vous ?</p>
+                    <p class="text-xs text-gray-400">Exprimez-vous en un clic : comment est la situation chez vous en ce moment ?</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 w-full md:w-auto">
-                <button onclick="castVote('cut')" class="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
+                <button type="button" onclick="castVote('cut')" class="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
                     <span>🔴 Coupure (<span id="voteCutCount">0</span>)</span>
                 </button>
-                <button onclick="castVote('ok')" class="flex-1 md:flex-none bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
+                <button type="button" onclick="castVote('ok')" class="flex-1 md:flex-none bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
                     <span>🟢 Du Courant (<span id="voteOkCount">0</span>)</span>
                 </button>
             </div>
         </div>
 
-        <!-- 3. CARTE INTERACTIVE LEAFLET & 4. FORMULAIRE DE SIGNALEMENT -->
+        <!-- CARTE & FORMULAIRE DE SIGNALEMENT -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
+            <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col justify-between shadow-lg">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="font-bold text-gray-200 flex items-center">
-                        <i class="fa-solid fa-map-location-dot text-emerald-400 mr-2"></i> Carte des Pannes en Direct
+                    <h2 class="font-bold text-gray-200 flex items-center text-base">
+                        <i class="fa-solid fa-map-location-dot text-emerald-400 mr-2 text-lg"></i> Carte Interactive des Pannes (15 Départements)
                     </h2>
-                    <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                        ☁️ Synchronisé Firestore
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-semibold">
+                        ☁️ Firestore Live
                     </span>
                 </div>
-                <div id="map-container">
+                <div id="map-wrapper" class="shadow-inner border border-gray-800 rounded-xl overflow-hidden">
                     <div id="map"></div>
                 </div>
             </div>
 
             <!-- FORMULAIRE SIGNALEMENT -->
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 shadow-lg">
                 <h2 class="text-lg font-bold text-white flex items-center">
                     <i class="fa-solid fa-bullhorn text-amber-400 mr-2"></i> Signaler une Coupure
                 </h2>
 
                 <form id="signalForm" class="space-y-3">
                     <div>
-                        <label class="text-xs text-gray-400 font-semibold mb-1 block">Département (15 départements)</label>
-                        <select id="deptSelect" class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm outline-none">
+                        <label class="text-xs text-gray-400 font-semibold mb-1 block">Département</label>
+                        <select id="deptSelect" class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-xl p-3 text-sm outline-none focus:border-emerald-500 transition">
                             <option value="Brazzaville">Brazzaville</option>
                             <option value="Pointe-Noire">Pointe-Noire</option>
                             <option value="Bouenza">Bouenza</option>
@@ -163,76 +161,125 @@
 
                     <div>
                         <label class="text-xs text-gray-400 font-semibold mb-1 block">Quartier / Avenue</label>
-                        <input type="text" id="districtInput" placeholder="Ex: Bacongo, Mpila, Tié-Tié..." required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm outline-none focus:border-emerald-500 transition">
+                        <input type="text" id="districtInput" placeholder="Ex: Bacongo, Mpila..." required class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-xl p-3 text-sm outline-none focus:border-emerald-500 transition">
                     </div>
 
                     <div>
                         <label class="text-xs text-gray-400 font-semibold mb-1 block">État du courant</label>
                         <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-gray-600">
+                            <label class="flex items-center justify-center p-3 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-red-500 transition">
                                 <input type="radio" name="status" value="cut" checked class="mr-2 accent-red-500">
-                                <span class="text-sm text-red-400 font-medium">🔴 Coupure</span>
+                                <span class="text-sm text-red-400 font-bold">🔴 Coupure</span>
                             </label>
-                            <label class="flex items-center justify-center p-2.5 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-gray-600">
+                            <label class="flex items-center justify-center p-3 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:border-emerald-500 transition">
                                 <input type="radio" name="status" value="ok" class="mr-2 accent-emerald-500">
-                                <span class="text-sm text-emerald-400 font-medium">🟢 Rétabli</span>
+                                <span class="text-sm text-emerald-400 font-bold">🟢 Rétabli</span>
                             </label>
                         </div>
                     </div>
 
                     <div>
                         <label class="text-xs text-gray-400 font-semibold mb-1 block">Commentaire</label>
-                        <input type="text" id="commentInput" placeholder="Précisez l'heure ou la situation..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg p-2.5 text-sm outline-none focus:border-emerald-500 transition">
+                        <input type="text" id="commentInput" placeholder="Précisez l'heure ou la situation..." class="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-xl p-3 text-sm outline-none focus:border-emerald-500 transition">
                     </div>
 
-                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold p-3 rounded-xl glow-button transition">
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-extrabold p-3.5 rounded-xl transition shadow-lg shadow-emerald-500/20">
                         Publier sur le Réseau
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- 5. LISTE DYNAMIQUE DES DERNIERS SIGNALEMENTS -->
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <h3 class="text-md font-bold text-gray-200 mb-3 flex items-center">
-                <i class="fa-solid fa-clock-rotate-left text-emerald-400 mr-2"></i> Derniers Signalements Communautaires
-            </h3>
-            <div id="signalsList" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
-        </div>
-
-        <!-- 6. ZONE DE TCHAT COMMUNAUTAIRE ("Le Salon des Citoyens" / "Agora 242") -->
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-5 space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-gray-800">
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">💬</span>
-                    <div>
-                        <h3 class="text-md font-bold text-white">Le Salon des Citoyens <span class="text-emerald-400 text-xs font-semibold">(Agora 242)</span></h3>
-                        <p class="text-xs text-gray-400">Échangez en temps réel avec la communauté sur l'état du réseau.</p>
-                    </div>
+        <!-- SALONS DE DISCUSSION PAR VILLE & FIL DES PANNES -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- CHAT SPÉCIAL PAR VILLE (AGORA 242) -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col h-[460px] shadow-lg">
+                <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
+                    <h3 class="text-sm font-bold text-gray-200 flex items-center">
+                        <i class="fa-solid fa-comments text-emerald-400 mr-2 text-base"></i> Salon de Discussion par Ville
+                    </h3>
+                    <select id="chatRoomSelect" onchange="switchChatRoom()" class="bg-gray-800 border border-gray-700 text-emerald-400 font-bold text-xs rounded-xl px-3 py-2 outline-none">
+                        <option value="Brazzaville">🏙️ Brazzaville</option>
+                        <option value="Pointe-Noire">🏙️ Pointe-Noire</option>
+                        <option value="Bouenza">🌆 Bouenza</option>
+                        <option value="Niari">🌆 Niari</option>
+                        <option value="Pool">🌆 Pool</option>
+                        <option value="Cuvette">🌆 Cuvette</option>
+                        <option value="Sangha">🌆 Sangha</option>
+                        <option value="Plateaux">🌆 Plateaux</option>
+                        <option value="Likouala">🌆 Likouala</option>
+                        <option value="Kouilou">🌆 Kouilou</option>
+                        <option value="Lékoumou">🌆 Lékoumou</option>
+                        <option value="Cuvette-Ouest">🌆 Cuvette-Ouest</option>
+                        <option value="Djoué-Léfini">🌆 Djoué-Léfini</option>
+                        <option value="Nkéni-Alima">🌆 Nkéni-Alima</option>
+                        <option value="Congo-Oubangui">🌆 Congo-Oubangui</option>
+                    </select>
                 </div>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-                    En direct
-                </span>
+                
+                <div id="chatMessages" class="flex-1 bg-gray-950/60 border border-gray-800 rounded-xl p-3 overflow-y-auto space-y-3 mb-3 text-xs custom-scrollbar"></div>
+
+                <!-- PRÉVISUALISATION PHOTO -->
+                <div id="imagePreviewContainer" class="hidden mb-2 relative inline-block">
+                    <img id="imagePreview" src="" class="h-16 rounded-xl border border-gray-700 object-cover">
+                    <button type="button" onclick="cancelImage()" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">✕</button>
+                </div>
+
+                <!-- BARRE DU CHAT MULTIMÉDIA -->
+                <form id="chatForm" class="flex items-center gap-2">
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelect(event)">
+                    
+                    <button type="button" onclick="document.getElementById('cameraInput').click()" class="bg-gray-800 hover:bg-gray-700 text-amber-400 border border-gray-700 p-2.5 rounded-xl text-xs transition flex items-center justify-center shadow" title="Ajouter une photo">
+                        <i class="fa-solid fa-camera text-base"></i>
+                    </button>
+
+                    <button type="button" id="recordBtn" onclick="toggleAudioRecording()" class="bg-gray-800 hover:bg-gray-700 text-red-400 border border-gray-700 p-2.5 rounded-xl text-xs transition flex items-center justify-center shadow" title="Note vocale">
+                        <i class="fa-solid fa-microphone text-base" id="recordIcon"></i>
+                    </button>
+
+                    <input type="text" id="chatInput" placeholder="Discutez pour ce département..." class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-emerald-500 transition">
+                    
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs transition shadow">Envoyer</button>
+                </form>
             </div>
 
-            <!-- ZONE D'AFFICHAGE DES MESSAGES -->
-            <div id="chatMessagesBox" class="h-64 overflow-y-auto space-y-3 p-2 bg-gray-950/60 rounded-xl border border-gray-800/80">
-                <div class="text-center text-xs text-gray-500 italic py-4">Chargement de la discussion...</div>
+            <!-- DERNIERS SIGNALEMENTS -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex flex-col h-[460px] shadow-lg">
+                <h3 class="text-sm font-bold text-gray-200 mb-3 flex items-center justify-between">
+                    <span><i class="fa-solid fa-bolt text-amber-400 mr-2 text-base"></i> Derniers Signalements Communautaires</span>
+                </h3>
+                <div id="signalsList" class="flex-1 bg-gray-950/60 border border-gray-800 rounded-xl p-3 overflow-y-auto space-y-2.5 text-xs custom-scrollbar"></div>
             </div>
-
-            <!-- FORMULAIRE D'ENVOI DE MESSAGE -->
-            <form id="chatForm" class="flex gap-2 items-center pt-1">
-                <input type="text" id="chatInput" placeholder="Posez une question ou partagez une info sur votre quartier..." required class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 transition">
-                <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20">
-                    <span>Envoyer</span>
-                    <i class="fa-solid fa-paper-plane text-xs"></i>
-                </button>
-            </form>
         </div>
 
-        <!-- 7. PIED DE PAGE ET SIGNATURE -->
-        <footer class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center space-y-2">
+        <!-- STATISTIQUES & ANALYTIQUE (GRAPHIQUES) -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 shadow-lg">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+                <div>
+                    <h3 class="text-base font-extrabold text-white flex items-center">
+                        <i class="fa-solid fa-chart-pie text-emerald-400 mr-2 text-lg"></i> Base de Données & Statistiques en Direct
+                    </h3>
+                    <p class="text-xs text-gray-400">Visualisation détaillée du nombre de signalements et des zones les plus touchées par les coupures.</p>
+                </div>
+                <div class="text-xs bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-xl font-bold text-emerald-400">
+                    Total Signalements : <span id="totalSignalsCount">0</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                <!-- GRAPHIQUE EN BARRES (PAR DÉPARTEMENT) -->
+                <div class="bg-gray-950/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center h-72">
+                    <canvas id="deptBarChart"></canvas>
+                </div>
+                <!-- GRAPHIQUE CIRCULAIRE (ÉTAT GLOBAL) -->
+                <div class="bg-gray-950/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center h-72">
+                    <canvas id="statusPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER / DESCRIPTION & SIGNATURE -->
+        <footer class="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center space-y-2 shadow-lg">
             <p class="text-xs text-gray-400 max-w-2xl mx-auto">
                 <strong class="text-gray-200">Wapi Courant 242</strong> est une plateforme de suivi communautaire et en temps réel des coupures et retours d'électricité à travers les 15 départements de la République du Congo. Ensemble, restons informés.
             </p>
@@ -243,28 +290,24 @@
 
     </div>
 
-    <!-- MODAL PROFIL CITOYEN -->
+    <!-- MODAL PROFIL -->
     <div id="profileModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-6 relative shadow-2xl">
-            <h3 class="text-lg font-bold text-white mb-4 flex items-center">
-                <i class="fa-solid fa-user-pen text-emerald-400 mr-2"></i> Mon Profil Citoyen
-            </h3>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-6 relative shadow-2xl space-y-4">
+            <h3 class="text-lg font-bold text-white mb-2">Mon Profil Citoyen</h3>
             <form id="profileForm" class="space-y-4">
                 <div>
                     <label class="text-xs text-gray-400 font-semibold mb-1 block">Votre Pseudo</label>
-                    <input type="text" id="modalPseudoInput" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 text-sm outline-none focus:border-emerald-500">
+                    <input type="text" id="modalPseudoInput" required class="w-full bg-gray-800 border border-gray-700 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500">
                 </div>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeProfileModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm transition">Annuler</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold rounded-lg text-sm transition">Enregistrer</button>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeProfileModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-sm font-bold transition">Annuler</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-extrabold rounded-xl text-sm transition">Enregistrer</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- 8. SCRIPT FIREBASE & LOGIQUE APPLICATIVE -->
     <script>
-        // CONFIGURATION FIREBASE ACTIVE
         const firebaseConfig = {
             apiKey: "AIzaSyC-9pitV5MvGwqrLDmUoAp03YscBgBtQ",
             authDomain: "wapi-courant-242.firebaseapp.com",
@@ -275,17 +318,13 @@
             measurementId: "G-Z2XXR4LQ8Q"
         };
 
-        // Initialisation Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Profil utilisateur persistant
         let currentUser = JSON.parse(localStorage.getItem('wapi_user')) || {
-            pseudo: 'Citoyen_' + Math.floor(1000 + Math.random() * 9000),
-            dept: 'Brazzaville'
+            pseudo: 'Citoyen_' + Math.floor(1000 + Math.random() * 9000)
         };
 
-        // Coordonnées des 15 départements
         const deptCoords = {
             'Brazzaville': [-4.2634, 15.2429],
             'Pointe-Noire': [-4.7761, 11.8635],
@@ -306,11 +345,21 @@
 
         let map = null;
         let mapMarkers = [];
-        let signals = [];
+        let currentChatRoom = 'Brazzaville';
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let selectedImageData = null;
+
+        // INSTANCES DE GRAPHIQUES CHART.JS
+        let deptBarChart = null;
+        let statusPieChart = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
             initMap();
+            initCharts();
             listenSignalsCloud();
             listenVotesCloud();
             listenChatCloud();
@@ -318,49 +367,313 @@
             document.getElementById('signalForm').addEventListener('submit', sendSignal);
             document.getElementById('profileForm').addEventListener('submit', saveProfile);
             document.getElementById('chatForm').addEventListener('submit', sendChatMessage);
+
+            if (Notification.permission === "granted") {
+                document.getElementById('notifStatusText').innerText = "Alertes Actives";
+                document.getElementById('notifBadgeBtn').classList.add('border-emerald-500', 'text-emerald-400');
+            }
         });
 
-        // Initialisation Carte Leaflet
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                alert("Ce navigateur ne supporte pas les notifications de bureau.");
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    document.getElementById('notifStatusText').innerText = "Alertes Actives";
+                    document.getElementById('notifBadgeBtn').classList.add('border-emerald-500', 'text-emerald-400');
+                    new Notification("Wapi Courant 242", { body: "Notifications activées avec succès ! Vous recevrez les alertes en direct." });
+                }
+            });
+        }
+
+        function triggerLocalNotification(title, body) {
+            if (Notification.permission === "granted") {
+                new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/3103/3103446.png" });
+            }
+        }
+
         function initMap() {
+            if (map) return;
             map = L.map('map').setView([-1.5, 15.5], 6);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
-            setTimeout(() => { 
-                map.invalidateSize(); 
-            }, 250);
+            setTimeout(() => { if (map) map.invalidateSize(); }, 300);
+            setTimeout(() => { if (map) map.invalidateSize(); }, 900);
         }
 
-        // Écoute des signalements en direct
-        function listenSignalsCloud() {
-            db.collection("signals").orderBy("timestamp", "desc").limit(50).onSnapshot(snapshot => {
-                signals = [];
-                snapshot.forEach(doc => {
-                    signals.push({ id: doc.id, ...doc.data() });
-                });
-                renderAll();
-            }, error => {
-                console.error("Erreur de synchronisation Firestore (signals) : ", error);
+        function initCharts() {
+            const barCtx = document.getElementById('deptBarChart').getContext('2d');
+            deptBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(deptCoords),
+                    datasets: [{
+                        label: 'Signalements par Département',
+                        data: new Array(Object.keys(deptCoords).length).fill(0),
+                        backgroundColor: '#10b981',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+                    }
+                }
+            });
+
+            const pieCtx = document.getElementById('statusPieChart').getContext('2d');
+            statusPieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['🔴 Coupures', '🟢 Rétablissements'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#ef4444', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#e2e8f0', font: { size: 11 } } }
+                    }
+                }
             });
         }
 
-        // Gestion du sondage éclair
+        function updateChartsData(signals) {
+            document.getElementById('totalSignalsCount').innerText = signals.length;
+
+            const deptCounts = {};
+            Object.keys(deptCoords).forEach(d => deptCounts[d] = 0);
+            
+            let cutTotal = 0;
+            let okTotal = 0;
+
+            signals.forEach(s => {
+                if (deptCounts[s.dept] !== undefined) deptCounts[s.dept]++;
+                if (s.status === 'cut') cutTotal++;
+                else okTotal++;
+            });
+
+            deptBarChart.data.datasets[0].data = Object.keys(deptCoords).map(d => deptCounts[d]);
+            deptBarChart.update();
+
+            statusPieChart.data.datasets[0].data = [cutTotal, okTotal];
+            statusPieChart.update();
+        }
+
+        function switchChatRoom() {
+            currentChatRoom = document.getElementById('chatRoomSelect').value;
+            listenChatCloud();
+        }
+
+        function handleImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxW = 600;
+                    const scale = maxW / img.width;
+                    canvas.width = maxW;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    selectedImageData = canvas.toDataURL('image/jpeg', 0.6);
+                    document.getElementById('imagePreview').src = selectedImageData;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function cancelImage() {
+            selectedImageData = null;
+            document.getElementById('cameraInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+        }
+
+        async function toggleAudioRecording() {
+            const recBtn = document.getElementById('recordBtn');
+            const recIcon = document.getElementById('recordIcon');
+
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            const base64Audio = reader.result;
+                            db.collection("chats_" + currentChatRoom).add({
+                                user: currentUser.pseudo,
+                                audio: base64Audio,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        };
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recBtn.classList.replace('text-red-400', 'text-white');
+                    recBtn.classList.add('bg-red-600', 'animate-pulse');
+                } catch (err) {
+                    alert("Accès au micro refusé ou non supporté.");
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recBtn.classList.replace('text-white', 'text-red-400');
+                recBtn.classList.remove('bg-red-600', 'animate-pulse');
+            }
+        }
+
+        let firstLoadChat = true;
+        function listenChatCloud() {
+            db.collection("chats_" + currentChatRoom).orderBy("timestamp", "asc").limit(50).onSnapshot(snapshot => {
+                const chatContainer = document.getElementById('chatMessages');
+                let html = '';
+                
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added" && !firstLoadChat) {
+                        const msg = change.doc.data();
+                        if (msg.user !== currentUser.pseudo) {
+                            triggerLocalNotification(`Nouveau message à ${currentChatRoom}`, `${msg.user}: ${msg.text || 'Média partagé'}`);
+                        }
+                    }
+                });
+                firstLoadChat = false;
+
+                snapshot.forEach(doc => {
+                    const msg = doc.data();
+                    let content = '';
+
+                    if (msg.text) content += `<span>${msg.text}</span>`;
+                    if (msg.image) content += `<div class="mt-1"><img src="${msg.image}" class="max-h-40 rounded-xl border border-gray-700 object-cover"></div>`;
+                    if (msg.audio) content += `<div class="mt-1"><audio controls src="${msg.audio}" class="h-8 max-w-full"></audio></div>`;
+
+                    html += `
+                        <div class="bg-gray-800/50 border border-gray-800/80 p-3 rounded-xl space-y-1 shadow">
+                            <div class="flex justify-between items-center">
+                                <span class="text-emerald-400 font-bold">${msg.user}</span>
+                            </div>
+                            <div class="text-gray-200">${content}</div>
+                        </div>
+                    `;
+                });
+                chatContainer.innerHTML = html || `<p class="text-gray-500 italic">Aucun message pour ${currentChatRoom}...</p>`;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        }
+
+        function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+
+            if (!text && !selectedImageData) return;
+
+            const payload = {
+                user: currentUser.pseudo,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            if (text) payload.text = text;
+            if (selectedImageData) payload.image = selectedImageData;
+
+            db.collection("chats_" + currentChatRoom).add(payload).then(() => {
+                input.value = '';
+                cancelImage();
+            });
+        }
+
+        let firstLoadSignal = true;
+        function listenSignalsCloud() {
+            db.collection("signals").orderBy("timestamp", "desc").limit(30).onSnapshot(snapshot => {
+                const signals = [];
+                
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added" && !firstLoadSignal) {
+                        const sig = change.doc.data();
+                        triggerLocalNotification(`Signalement: ${sig.dept}`, `${sig.district} - ${sig.status === 'cut' ? 'Coupure 🔴' : 'Rétabli 🟢'}`);
+                    }
+                });
+                firstLoadSignal = false;
+
+                snapshot.forEach(doc => signals.push({ id: doc.id, ...doc.data() }));
+                
+                updateChartsData(signals);
+
+                if (map) {
+                    mapMarkers.forEach(m => map.removeLayer(m));
+                    mapMarkers = [];
+                    signals.forEach(sig => {
+                        const coords = deptCoords[sig.dept] || [-4.2634, 15.2429];
+                        const icon = L.divIcon({
+                            className: 'custom-icon',
+                            html: `<div class="${sig.status === 'cut' ? 'pulse-marker' : 'pulse-green'} w-5 h-5 border-2 border-white shadow-lg"></div>`
+                        });
+                        const marker = L.marker(coords, { icon }).addTo(map);
+                        marker.bindPopup(`<b>${sig.dept} - ${sig.district}</b><br>${sig.comment || ''}<br><small>Par: ${sig.user}</small>`);
+                        mapMarkers.push(marker);
+                    });
+                }
+
+                const list = document.getElementById('signalsList');
+                if (signals.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement...</p>';
+                    return;
+                }
+
+                list.innerHTML = signals.map(s => `
+                    <div class="bg-gray-800/60 p-3 rounded-xl flex justify-between items-center shadow">
+                        <div>
+                            <strong class="text-white">${s.dept} (${s.district})</strong>
+                            <p class="text-gray-300">${s.comment || 'Panne électricité'}</p>
+                            <span class="text-gray-500 text-[10px]">Par ${s.user}</span>
+                        </div>
+                        <span class="${s.status === 'cut' ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'} px-2.5 py-1 rounded-xl font-bold">
+                            ${s.status === 'cut' ? '🔴 Coupure' : '🟢 Rétabli'}
+                        </span>
+                    </div>
+                `).join('');
+            });
+        }
+
         function castVote(status) {
-            const voteData = {
+            db.collection("votes").add({
                 user: currentUser.pseudo,
                 status: status,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            db.collection("votes").add(voteData).catch(err => {
-                console.error("Erreur vote : ", err);
             });
         }
 
         function listenVotesCloud() {
-            db.collection("votes").onSnapshot(snapshot => {
-                let cutCount = 0;
-                let okCount = 0;
+            db.collection("votes").limit(100).onSnapshot(snapshot => {
+                let cutCount = 0, okCount = 0;
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     if (data.status === 'cut') cutCount++;
@@ -371,75 +684,6 @@
             });
         }
 
-        // Écoute et affichage du Tchat Communautaire (Collection 'messages')
-        function listenChatCloud() {
-            db.collection("messages").orderBy("timestamp", "asc").limit(100).onSnapshot(snapshot => {
-                const chatBox = document.getElementById('chatMessagesBox');
-                if (snapshot.empty) {
-                    chatBox.innerHTML = '<div class="text-center text-xs text-gray-500 italic py-6">Aucun message pour l\'instant. Soyez le premier à parler !</div>';
-                    return;
-                }
-
-                let html = '';
-                snapshot.forEach(doc => {
-                    const msg = doc.data();
-                    const isMe = msg.user === currentUser.pseudo;
-                    
-                    // Format de l'heure
-                    let timeStr = 'À l\'instant';
-                    if (msg.timestamp && msg.timestamp.toDate) {
-                        const date = msg.timestamp.toDate();
-                        timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    }
-
-                    html += `
-                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
-                            <div class="flex items-center gap-1.5 mb-0.5">
-                                <span class="text-[11px] font-bold ${isMe ? 'text-emerald-400' : 'text-amber-400'}">${escapeHtml(msg.user || 'Anonyme')}</span>
-                                <span class="text-[10px] text-gray-500">${timeStr}</span>
-                            </div>
-                            <div class="max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
-                                isMe 
-                                    ? 'bg-emerald-600 text-white rounded-tr-none' 
-                                    : 'bg-gray-800 text-gray-200 border border-gray-700/70 rounded-tl-none'
-                            }">
-                                ${escapeHtml(msg.text || '')}
-                            </div>
-                        </div>
-                    `;
-                });
-
-                chatBox.innerHTML = html;
-                // Défilement automatique vers le bas
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }, error => {
-                console.error("Erreur Firestore Tchat : ", error);
-                document.getElementById('chatMessagesBox').innerHTML = '<div class="text-center text-xs text-red-400 py-4">Erreur de chargement du tchat.</div>';
-            });
-        }
-
-        // Envoi d'un message sur le Tchat
-        function sendChatMessage(e) {
-            e.preventDefault();
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-
-            if (!text) return;
-
-            const messageData = {
-                text: text,
-                user: currentUser.pseudo,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            input.value = '';
-
-            db.collection("messages").add(messageData).catch(err => {
-                console.error("Erreur lors de l'envoi du message : ", err);
-            });
-        }
-
-        // Envoi d'un signalement de panne
         function sendSignal(e) {
             e.preventDefault();
             const dept = document.getElementById('deptSelect').value;
@@ -447,68 +691,24 @@
             const status = document.querySelector('input[name="status"]:checked').value;
             const comment = document.getElementById('commentInput').value.trim();
 
-            const data = {
+            db.collection("signals").add({
                 dept, district, status, comment,
                 user: currentUser.pseudo,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            db.collection("signals").add(data).then(() => {
+            }).then(() => {
                 document.getElementById('districtInput').value = '';
                 document.getElementById('commentInput').value = '';
-            }).catch(err => {
-                alert("Erreur lors de l'envoi : " + err.message);
             });
         }
 
-        // Rendu Carte et Liste des Signalements
-        function renderAll() {
-            if (map) {
-                mapMarkers.forEach(m => map.removeLayer(m));
-                mapMarkers = [];
-
-                signals.forEach(sig => {
-                    const coords = deptCoords[sig.dept] || [-4.2634, 15.2429];
-                    const icon = L.divIcon({
-                        className: 'custom-icon',
-                        html: `<div class="${sig.status === 'cut' ? 'pulse-marker' : 'pulse-green'} w-5 h-5 border-2 border-white"></div>`
-                    });
-                    const marker = L.marker(coords, { icon }).addTo(map);
-                    marker.bindPopup(`<b>${escapeHtml(sig.dept)} - ${escapeHtml(sig.district)}</b><br>${escapeHtml(sig.comment || '')}<br><small>Par: ${escapeHtml(sig.user)}</small>`);
-                    mapMarkers.push(marker);
-                });
-            }
-
-            const list = document.getElementById('signalsList');
-            if (signals.length === 0) {
-                list.innerHTML = '<p class="text-xs text-gray-500 italic">Aucun signalement pour le moment.</p>';
-                return;
-            }
-
-            list.innerHTML = signals.map(s => `
-                <div class="bg-gray-800/60 border border-gray-800 p-2.5 rounded-lg flex justify-between items-center text-xs">
-                    <div>
-                        <strong class="text-white">${escapeHtml(s.dept)} (${escapeHtml(s.district)})</strong>
-                        <p class="text-gray-300 mt-0.5">${escapeHtml(s.comment || 'Signalement électricité')}</p>
-                        <span class="text-gray-500 text-[10px]">Par ${escapeHtml(s.user)}</span>
-                    </div>
-                    <span class="${s.status === 'cut' ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'} border px-2 py-1 rounded-lg font-bold">
-                        ${s.status === 'cut' ? '🔴 Coupure' : '🟢 Rétabli'}
-                    </span>
-                </div>
-            `).join('');
-        }
-
-        // Modale Profil
         function openProfileModal() {
             document.getElementById('modalPseudoInput').value = currentUser.pseudo;
             document.getElementById('profileModal').classList.remove('hidden');
-            setTimeout(() => { if(map) map.invalidateSize(); }, 100);
         }
 
         function closeProfileModal() {
             document.getElementById('profileModal').classList.add('hidden');
-            setTimeout(() => { if(map) map.invalidateSize(); }, 100);
+            if (map) setTimeout(() => { map.invalidateSize(); }, 150);
         }
 
         function saveProfile(e) {
@@ -517,17 +717,6 @@
             localStorage.setItem('wapi_user', JSON.stringify(currentUser));
             document.getElementById('headerUserPseudo').innerText = currentUser.pseudo;
             closeProfileModal();
-        }
-
-        // Sécurité anti-XSS
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
         }
     </script>
 </body>
