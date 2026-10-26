@@ -123,7 +123,7 @@
                         <i class="fa-solid fa-map-location-dot text-emerald-400 mr-2 text-lg"></i> Carte Interactive des Pannes (15 Départements)
                     </h2>
                     <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-semibold">
-                        ☁️ Firestore Live
+                        ☁️ OpenStreetMap Live
                     </span>
                 </div>
                 <div id="map-wrapper" class="shadow-inner border border-gray-800 rounded-xl overflow-hidden">
@@ -368,36 +368,53 @@
             document.getElementById('profileForm').addEventListener('submit', saveProfile);
             document.getElementById('chatForm').addEventListener('submit', sendChatMessage);
 
-            if (Notification.permission === "granted") {
+            checkNotificationSupport();
+        });
+
+        function checkNotificationSupport() {
+            if (!("Notification" in window)) {
+                document.getElementById('notifStatusText').innerText = "Non supporté";
+                document.getElementById('notifBadgeBtn').style.opacity = "0.5";
+                document.getElementById('notifBadgeBtn').style.pointerEvents = "none";
+            } else if (Notification.permission === "granted") {
                 document.getElementById('notifStatusText').innerText = "Alertes Actives";
                 document.getElementById('notifBadgeBtn').classList.add('border-emerald-500', 'text-emerald-400');
             }
-        });
+        }
 
         function requestNotificationPermission() {
             if (!("Notification" in window)) {
-                alert("Ce navigateur ne supporte pas les notifications de bureau.");
+                alert("Votre navigateur ne prend pas en charge les notifications de bureau standard. L'application reste entièrement fonctionnelle pour le reste !");
                 return;
             }
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
                     document.getElementById('notifStatusText').innerText = "Alertes Actives";
                     document.getElementById('notifBadgeBtn').classList.add('border-emerald-500', 'text-emerald-400');
-                    new Notification("Wapi Courant 242", { body: "Notifications activées avec succès ! Vous recevrez les alertes en direct." });
+                    new Notification("Wapi Courant 242", { body: "Notifications activées avec succès !" });
+                } else {
+                    alert("Les notifications ont été bloquées ou ne sont pas autorisées par ce navigateur.");
                 }
+            }).catch(err => {
+                alert("Impossible d'activer les notifications sur ce navigateur.");
             });
         }
 
         function triggerLocalNotification(title, body) {
-            if (Notification.permission === "granted") {
-                new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/3103/3103446.png" });
+            if (("Notification" in window) && Notification.permission === "granted") {
+                try {
+                    new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/3103/3103446.png" });
+                } catch(e) { console.log(e); }
             }
         }
 
         function initMap() {
             if (map) return;
             map = L.map('map').setView([-1.5, 15.5], 6);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            
+            // REMPLACEMENT PAR LES TUILES STANDARD ET ULTRA-FIABLES OPENSTREETMAP
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
@@ -541,7 +558,7 @@
                     recBtn.classList.replace('text-red-400', 'text-white');
                     recBtn.classList.add('bg-red-600', 'animate-pulse');
                 } catch (err) {
-                    alert("Accès au micro refusé ou non supporté.");
+                    alert("Accès au micro refusé ou non supporté par ce navigateur.");
                 }
             } else {
                 mediaRecorder.stop();
