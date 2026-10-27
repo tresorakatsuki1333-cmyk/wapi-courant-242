@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr" class="h-full bg-slate-950 text-slate-100">
+<html lang="fr" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wapi Courant 242 - Panneau d'Administration</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Wapi Courant 242 - Panneau Administrateur</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -12,893 +12,526 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#fffbe1',
-                            100: '#fff3c2',
-                            500: '#f59e0b', // Amber
-                            600: '#d97706',
-                            700: '#b45309'
-                        }
+                        darkbg: '#0b0f19',
+                        cardbg: '#151c2c',
+                        cardborder: '#232d42',
+                        accentorange: '#f59e0b',
+                        accentgreen: '#10b981',
+                        accentblue: '#3b82f6',
+                        accentpurple: '#a855f7'
                     }
                 }
             }
         }
     </script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS & JS for Free OpenStreetMap -->
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet CSS & JS (Gratuit - OpenStreetMap) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Firebase Compat v10 SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
+    <!-- Firebase JS SDK (v9 Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
-        /* Custom scrollbar for dashboard tables & views */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-        #map { z-index: 10; min-height: 280px; }
+        body { 
+            background-color: #0b0f19; 
+            color: #f3f4f6; 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        /* Style sombre appliqué aux tuiles OpenStreetMap */
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+            filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.1);
+        }
+        .leaflet-container {
+            background: #151c2c !important;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #232d42;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
     </style>
 </head>
-<body class="h-full font-sans antialiased bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-x-hidden">
+<body class="min-h-screen flex flex-col font-sans antialiased bg-darkbg text-gray-100">
 
-    <!-- Mobile Top Navigation Header -->
-    <header class="md:hidden bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-30 sticky top-0">
+    <!-- En-tête / Header -->
+    <header class="border-b border-cardborder px-4 py-3 flex items-center justify-between bg-darkbg/90 backdrop-blur sticky top-0 z-50">
         <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-lg border border-amber-500/30">
-                <i class="fas fa-bolt"></i>
+            <div class="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10">
+                <i data-lucide="zap" class="w-5 h-5 text-amber-500 fill-amber-500"></i>
             </div>
             <div>
-                <h1 class="font-bold text-base text-white leading-none">Wapi Courant 242</h1>
-                <span class="text-xs text-amber-500 font-medium">Panneau Administrateur</span>
+                <h1 class="font-bold text-lg text-white leading-tight">Wapi Courant 242</h1>
+                <p class="text-xs text-amber-500 font-semibold tracking-wide">Panneau Administrateur</p>
             </div>
         </div>
-        <button id="mobile-menu-toggle" class="p-2 text-slate-300 hover:text-white rounded-lg bg-slate-800 border border-slate-700">
-            <i class="fas fa-bars text-xl"></i>
+        <button id="btn-menu" onclick="toggleMenu()" aria-label="Menu principal" class="p-2 rounded-xl bg-cardbg border border-cardborder text-gray-300 hover:text-white hover:border-gray-600 transition focus:outline-none active:scale-95">
+            <i data-lucide="menu" class="w-6 h-6"></i>
         </button>
     </header>
 
-    <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 border-r border-slate-800 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between md:static md:inset-auto">
+    <!-- Notification / Toast Alert -->
+    <div id="toast" class="fixed bottom-4 right-4 z-50 transform translate-y-10 opacity-0 transition-all duration-300 pointer-events-none px-4 py-3 rounded-xl bg-cardbg border border-cardborder text-xs font-semibold shadow-2xl flex items-center space-x-2">
+        <i id="toast-icon" data-lucide="info" class="w-4 h-4 text-amber-500"></i>
+        <span id="toast-msg" class="text-white">Message</span>
+    </div>
+
+    <!-- Contenu Principal -->
+    <main class="flex-1 p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
+
+        <!-- Titre & Description -->
         <div>
-            <!-- Sidebar Header -->
-            <div class="p-5 border-b border-slate-800 hidden md:flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-xl border border-amber-500/30">
-                    <i class="fas fa-bolt"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-base text-white leading-tight">Wapi Courant 242</h1>
-                    <span class="text-xs text-amber-500 font-medium">Admin Dashboard</span>
-                </div>
-            </div>
-
-            <!-- Connection Mode Badge -->
-            <div class="p-4 border-b border-slate-800/60 bg-slate-900/50">
-                <div class="flex items-center justify-between text-xs mb-1">
-                    <span class="text-slate-400">Mode Source:</span>
-                    <span id="connection-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                        MODE DÉMO
-                    </span>
-                </div>
-                <p id="connection-desc" class="text-[11px] text-slate-400 truncate">Données de démonstration interactives</p>
-            </div>
-
-            <!-- Navigation Links -->
-            <nav class="p-4 space-y-1.5">
-                <button data-target="view-dashboard" class="nav-btn active w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all bg-amber-500 text-slate-950 font-semibold shadow-lg shadow-amber-500/20">
-                    <i class="fas fa-chart-pie w-5 text-center"></i>
-                    <span>Tableau de Bord</span>
-                </button>
-
-                <button data-target="view-outages" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-                    <i class="fas fa-map-marker-alt w-5 text-center"></i>
-                    <span>Signalements (Coupures)</span>
-                </button>
-
-                <button data-target="view-faq" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-                    <i class="fas fa-question-circle w-5 text-center"></i>
-                    <span>Gestion FAQ</span>
-                </button>
-
-                <button data-target="view-surveys" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-                    <i class="fas fa-poll w-5 text-center"></i>
-                    <span>Sondages & Avis</span>
-                </button>
-            </nav>
+            <h2 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Tableau de Bord</h2>
+            <p class="text-xs md:text-sm text-gray-400 mt-1">Suivi en temps réel et modération des coupures de courant</p>
         </div>
 
-        <!-- Sidebar Footer / Config Modal Button -->
-        <div class="p-4 border-t border-slate-800 space-y-2">
-            <button id="open-config-btn" class="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 transition-all">
-                <i class="fas fa-cog text-amber-500"></i>
-                <span>Configuration Firebase</span>
+        <!-- Action Buttons -->
+        <div class="flex items-center space-x-3">
+            <button id="btn-reload" onclick="reloadFirestore()" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-cardbg border border-cardborder text-gray-200 hover:bg-slate-800 hover:border-gray-600 text-sm font-medium transition active:scale-95 shadow-sm">
+                <i data-lucide="rotate-cw" id="reload-icon" class="w-4 h-4 text-gray-400"></i>
+                <span>Recharger</span>
             </button>
-            <div class="text-[10px] text-center text-slate-400">
-                Wapi Courant v2.4 — 2026
-            </div>
-        </div>
-    </aside>
-
-    <!-- Overlay for mobile menu -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-30 hidden md:hidden"></div>
-
-    <!-- Main Content Area -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-
-        <!-- Top Header Controls -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-800">
-            <div>
-                <h2 id="page-title" class="text-2xl font-bold text-white tracking-tight">Tableau de Bord</h2>
-                <p class="text-xs text-slate-400">Suivi en temps réel et modération des coupures de courant</p>
-            </div>
-            <div class="flex items-center space-x-3">
-                <button id="reload-btn" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center space-x-2">
-                    <i class="fas fa-sync-alt text-amber-500"></i>
-                    <span>Recharger</span>
-                </button>
-                <button id="export-csv-btn" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center space-x-2">
-                    <i class="fas fa-file-csv"></i>
-                    <span>Exporter CSV</span>
-                </button>
-            </div>
+            <button id="btn-export" onclick="exportCSV()" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium shadow-lg shadow-emerald-950/50 transition active:scale-95">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                <span>Exporter CSV</span>
+            </button>
         </div>
 
-        <!-- KPI Cards Section -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- KPI 1 -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl relative overflow-hidden">
+        <!-- Cartes d'indicateurs KPI (Grille 2x2 responsive) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            
+            <!-- Signalements Actifs -->
+            <div class="bg-cardbg border border-cardborder rounded-2xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group hover:border-amber-500/40 transition">
                 <div class="flex justify-between items-start">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400">Signalements Actifs</span>
-                        <h3 id="kpi-active-outages" class="text-2xl font-black text-amber-500 mt-1">0</h3>
-                    </div>
-                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
-                        <i class="fas fa-exclamation-triangle text-lg"></i>
+                    <span class="text-xs md:text-sm text-gray-400 font-medium leading-snug">Signalements<br>Actifs</span>
+                    <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
                     </div>
                 </div>
-                <div class="mt-3 text-[11px] text-slate-400">Coupures en cours dans la zone</div>
+                <div class="mt-4">
+                    <span id="kpi-actives" class="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-tight">0</span>
+                    <p class="text-[11px] text-gray-400 mt-1">Coupures en cours dans la zone</p>
+                </div>
             </div>
 
-            <!-- KPI 2 -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl relative overflow-hidden">
+            <!-- Coupures Résolues -->
+            <div class="bg-cardbg border border-cardborder rounded-2xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group hover:border-emerald-500/40 transition">
                 <div class="flex justify-between items-start">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400">Coupures Résolues</span>
-                        <h3 id="kpi-resolved-outages" class="text-2xl font-black text-emerald-400 mt-1">0</h3>
-                    </div>
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                        <i class="fas fa-check-circle text-lg"></i>
+                    <span class="text-xs md:text-sm text-gray-400 font-medium leading-snug">Coupures<br>Résolues</span>
+                    <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
                     </div>
                 </div>
-                <div class="mt-3 text-[11px] text-slate-400">Rétablissements enregistrés</div>
+                <div class="mt-4">
+                    <span id="kpi-resolved" class="text-3xl md:text-4xl font-extrabold text-emerald-500 tracking-tight">0</span>
+                    <p class="text-[11px] text-gray-400 mt-1">Rétablissements enregistrés</p>
+                </div>
             </div>
 
-            <!-- KPI 3 -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl relative overflow-hidden">
+            <!-- Taux de Résolution -->
+            <div class="bg-cardbg border border-cardborder rounded-2xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group hover:border-blue-500/40 transition">
                 <div class="flex justify-between items-start">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400">Taux de Résolution</span>
-                        <h3 id="kpi-resolution-rate" class="text-2xl font-black text-blue-400 mt-1">0%</h3>
-                    </div>
-                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
-                        <i class="fas fa-chart-line text-lg"></i>
+                    <span class="text-xs md:text-sm text-gray-400 font-medium leading-snug">Taux de Résolution</span>
+                    <div class="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500">
+                        <i data-lucide="line-chart" class="w-5 h-5"></i>
                     </div>
                 </div>
-                <div class="mt-3 text-[11px] text-slate-400">Efficacité de réponse du réseau</div>
+                <div class="mt-4">
+                    <span id="kpi-rate" class="text-3xl md:text-4xl font-extrabold text-blue-500 tracking-tight">0%</span>
+                    <p class="text-[11px] text-gray-400 mt-1">Efficacité de réponse du réseau</p>
+                </div>
             </div>
 
-            <!-- KPI 4 -->
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl relative overflow-hidden">
+            <!-- Sondages Actifs -->
+            <div class="bg-cardbg border border-cardborder rounded-2xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group hover:border-purple-500/40 transition">
                 <div class="flex justify-between items-start">
-                    <div>
-                        <span class="text-xs font-medium text-slate-400">Sondages Actifs</span>
-                        <h3 id="kpi-active-surveys" class="text-2xl font-black text-purple-400 mt-1">0</h3>
-                    </div>
-                    <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
-                        <i class="fas fa-poll text-lg"></i>
+                    <span class="text-xs md:text-sm text-gray-400 font-medium leading-snug">Sondages Actifs</span>
+                    <div class="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-500">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
                     </div>
                 </div>
-                <div class="mt-3 text-[11px] text-slate-400">Avis utilisateurs en cours</div>
+                <div class="mt-4">
+                    <span id="kpi-polls" class="text-3xl md:text-4xl font-extrabold text-purple-500 tracking-tight">1</span>
+                    <p class="text-[11px] text-gray-400 mt-1">Avis utilisateurs en cours</p>
+                </div>
             </div>
+
         </div>
 
-        <!-- VIEW 1: DASHBOARD (MAP + QUICK SUMMARY) -->
-        <section id="view-dashboard" class="view-panel space-y-6">
-            <!-- Free Leaflet Map Card -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                    <div>
-                        <h3 class="text-base font-bold text-white flex items-center gap-2">
-                            <i class="fas fa-map-marked-alt text-amber-500"></i>
-                            <span>Carte Interactive des Coupures (OpenStreetMap)</span>
-                        </h3>
-                        <p class="text-xs text-slate-400">Visualisation cartographique gratuite et géolocalisée en temps réel</p>
-                    </div>
-                    <div class="flex items-center space-x-3 text-xs">
-                        <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> <span>En cours</span></span>
-                        <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> <span>Résolu</span></span>
-                    </div>
+        <!-- Carte Interactive -->
+        <div class="bg-cardbg border border-cardborder rounded-2xl p-4 md:p-5 space-y-3 shadow-xl">
+            <div class="flex items-center space-x-2.5">
+                <div class="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
+                    <i data-lucide="map-pin" class="w-5 h-5"></i>
                 </div>
-                <!-- Leaflet Map Container -->
-                <div id="map" class="w-full h-80 md:h-96 rounded-xl overflow-hidden border border-slate-800"></div>
+                <h3 class="font-bold text-white text-base md:text-lg">Carte Interactive des Coupures (OpenStreetMap)</h3>
             </div>
-        </section>
-
-        <!-- VIEW 2: SIGNALEMENTS MODERATION TABLE -->
-        <section id="view-outages" class="view-panel space-y-4 hidden">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 space-y-4">
-                <!-- Filters & Search Bar -->
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div class="relative flex-1">
-                        <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
-                        <input type="text" id="search-outages-input" placeholder="Rechercher par quartier, ville ou description..." class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl pl-9 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500">
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <select id="filter-outages-status" class="bg-slate-950 border border-slate-800 text-xs rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500">
-                            <option value="ALL">Tous les statuts</option>
-                            <option value="ACTIVE">En cours uniquement</option>
-                            <option value="RESOLVED">Résolus uniquement</option>
-                        </select>
-                        <button id="apply-outages-filter" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold text-xs rounded-xl transition-all">
-                            Filtrer
-                        </button>
-                    </div>
+            <p class="text-xs text-gray-400">Visualisation cartographique gratuite et géolocalisée en temps réel</p>
+            
+            <div class="flex items-center space-x-4 text-xs font-semibold pt-1">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-amber-500 inline-block ring-4 ring-amber-500/20"></span>
+                    <span class="text-gray-300">En cours</span>
                 </div>
-
-                <!-- Table Container -->
-                <div class="overflow-x-auto rounded-xl border border-slate-800">
-                    <table class="w-full text-left text-xs text-slate-300">
-                        <thead class="bg-slate-950 text-slate-400 text-[11px] uppercase border-b border-slate-800">
-                            <tr>
-                                <th class="p-3.5">Zone / Quartier</th>
-                                <th class="p-3.5">Type & Description</th>
-                                <th class="p-3.5">Date & Heure</th>
-                                <th class="p-3.5">Statut</th>
-                                <th class="p-3.5 text-right">Actions de Modération</th>
-                            </tr>
-                        </thead>
-                        <tbody id="outages-table-body" class="divide-y divide-slate-800/60 bg-slate-900">
-                            <!-- Dynamically Generated Outage Rows -->
-                        </tbody>
-                    </table>
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block ring-4 ring-emerald-500/20"></span>
+                    <span class="text-gray-300">Résolu</span>
                 </div>
             </div>
-        </section>
 
-        <!-- VIEW 3: FAQ MANAGER -->
-        <section id="view-faq" class="view-panel space-y-6 hidden">
-            <!-- Add FAQ Form Card -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5">
-                <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
-                    <i class="fas fa-plus-circle text-amber-500"></i>
-                    <span>Ajouter une nouvelle question (FAQ)</span>
+            <div id="map" class="w-full h-72 md:h-96 rounded-xl overflow-hidden border border-cardborder mt-2 shadow-inner"></div>
+        </div>
+
+        <!-- Liste Récente des Signalements -->
+        <div class="bg-cardbg border border-cardborder rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-white text-base md:text-lg flex items-center space-x-2.5">
+                    <i data-lucide="list" class="w-5 h-5 text-amber-500"></i>
+                    <span>Derniers Signalements</span>
                 </h3>
-                <form id="add-faq-form" class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Question</label>
-                        <input type="text" id="faq-question-input" required placeholder="Ex: Que faire lors d'une coupure prolongée ?" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-3 text-slate-200 focus:outline-none focus:border-amber-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Réponse explicative</label>
-                        <textarea id="faq-answer-input" required rows="3" placeholder="Rédigez ici la reponse à destination des utilisateurs..." class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-3 text-slate-200 focus:outline-none focus:border-amber-500"></textarea>
-                    </div>
-                    <button type="submit" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition-all">
-                        Publier la FAQ
-                    </button>
-                </form>
+                <span id="signals-count-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-800 text-gray-300 border border-cardborder">0 total</span>
             </div>
 
-            <!-- Existing FAQ List -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5">
-                <h3 class="text-sm font-bold text-white mb-4">Questions Fréquentes Actives</h3>
-                <div id="faq-list-container" class="space-y-3">
-                    <!-- Dynamic FAQ Items -->
-                </div>
+            <div id="signals-container" class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                <p class="text-xs text-gray-500 text-center py-6">Connexion à Firestore en cours...</p>
             </div>
-        </section>
-
-        <!-- VIEW 4: SURVEYS & POLLS MANAGER -->
-        <section id="view-surveys" class="view-panel space-y-6 hidden">
-            <!-- Add Survey Form -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5">
-                <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
-                    <i class="fas fa-poll-h text-purple-400"></i>
-                    <span>Créer un nouveau Sondage Communautaire</span>
-                </h3>
-                <form id="add-survey-form" class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Question du sondage</label>
-                        <input type="text" id="survey-title-input" required placeholder="Ex: Avez-vous de la tension stable actuellement ?" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Option A</label>
-                            <input type="text" id="survey-opt1-input" required placeholder="Ex: Oui, stable" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Option B</label>
-                            <input type="text" id="survey-opt2-input" required placeholder="Ex: Non, baisses fréquentes" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-3 text-slate-200 focus:outline-none focus:border-purple-500">
-                        </div>
-                    </div>
-                    <button type="submit" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/20 transition-all">
-                        Lancer le Sondage
-                    </button>
-                </form>
-            </div>
-
-            <!-- Active Surveys List -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5">
-                <h3 class="text-sm font-bold text-white mb-4">Sondages & Résultats en direct</h3>
-                <div id="surveys-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Dynamic Survey Items -->
-                </div>
-            </div>
-        </section>
+        </div>
 
     </main>
 
-    <!-- FIREBASE CONFIG MODAL -->
-    <div id="config-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-4">
-            <button id="close-config-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-xl">
-                    <i class="fas fa-database"></i>
-                </div>
-                <div>
-                    <h3 class="text-base font-bold text-white">Lier la base de données Firebase</h3>
-                    <p class="text-xs text-slate-400">Collez la configuration de votre application utilisateur</p>
-                </div>
-            </div>
+    <!-- Pied de Page / Footer -->
+    <footer class="border-t border-cardborder py-4 text-center text-xs text-gray-500">
+        Wapi Courant 242 &copy; 2026 - Plateforme de gestion des réseaux électriques
+    </footer>
 
-            <form id="firebase-config-form" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Configuration Objet JSON ou Champs JS</label>
-                    <textarea id="firebase-json-input" rows="7" required placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "wapi-courant.firebaseapp.com",
-  "projectId": "wapi-courant",
-  "storageBucket": "wapi-courant.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "1:123456789:web:abcdef"
-}' class="w-full bg-slate-950 border border-slate-800 text-xs font-mono rounded-xl p-3 text-slate-200 focus:outline-none focus:border-amber-500"></textarea>
-                </div>
-
-                <div class="flex items-center justify-between pt-2">
-                    <button type="button" id="use-demo-mode-btn" class="text-xs text-amber-400 hover:underline font-medium">
-                        Repasser en Mode Démo
-                    </button>
-                    <button type="submit" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition-all">
-                        Enregistrer & Connecter
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <!-- Script de Logique & Firebase -->
     <script>
-        // --- GLOBAL APP STATE ---
-        let isFirebaseActive = false;
-        let db = null;
-        let map = null;
-        let mapMarkers = {};
-
-        // In-Memory Data Store (Used by default in Demo Mode or as fallback cache)
-        let appState = {
-            outages: [
-                { id: 'out-101', location: 'Brazzaville - Poto-Poto', description: 'Coupure générale suite à un orage', timestamp: new Date(Date.now() - 3600000).toISOString(), status: 'ACTIVE', lat: -4.2634, lng: 15.2825 },
-                { id: 'out-102', location: 'Brazzaville - Bacongo', description: 'Baisse de tension puis coupure', timestamp: new Date(Date.now() - 7200000).toISOString(), status: 'ACTIVE', lat: -4.2810, lng: 15.2650 },
-                { id: 'out-103', location: 'Pointe-Noire - Tié-Tié', description: 'Câble endommagé en cours de réparation', timestamp: new Date(Date.now() - 18000000).toISOString(), status: 'RESOLVED', lat: -4.7988, lng: 11.8631 }
-            ],
-            faq: [
-                { id: 'faq-1', question: 'Comment signaler une coupure dans mon quartier ?', answer: 'Cliquez sur le bouton "Signaler" sur la carte client et activez votre géolocalisation.', visible: true },
-                { id: 'faq-2', question: 'Comment savoir si ma zone est résolue ?', answer: 'Les marqueurs passent au vert dès que la confirmation du rétablissement est validée par l\'administration.', visible: true }
-            ],
-            surveys: [
-                { id: 'surv-1', title: 'Quel est l\'état de la tension électrique dans votre secteur ?', optionA: 'Stable', optionB: 'Instable / Baisses', votesA: 14, votesB: 28, active: true }
-            ]
+        // Coordonnées de quartiers connus à Brazzaville si lat/lng absents
+        const QUARTIER_COORDS = {
+            "makélékélé": [-4.295, 15.235],
+            "makelekele": [-4.295, 15.235],
+            "bacongo": [-4.281, 15.253],
+            "poto-poto": [-4.258, 15.278],
+            "moungali": [-4.248, 15.268],
+            "ouenzé": [-4.238, 15.285],
+            "ouenze": [-4.238, 15.285],
+            "talangaï": [-4.215, 15.295],
+            "talangai": [-4.215, 15.295],
+            "mfilou": [-4.250, 15.220],
+            "djiri": [-4.180, 15.310]
         };
 
-        // --- TOAST NOTIFICATIONS HELPER ---
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            const bgColor = type === 'success' ? 'bg-emerald-600' : type === 'warning' ? 'bg-amber-600' : 'bg-red-600';
-            const icon = type === 'success' ? 'fa-check-circle' : type === 'warning' ? 'fa-exclamation-circle' : 'fa-times-circle';
-            
-            toast.className = `fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl text-white font-medium text-xs shadow-2xl ${bgColor} flex items-center space-x-2 transition-all duration-300 transform translate-y-10 opacity-0`;
-            toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
-            
-            document.body.appendChild(toast);
-            setTimeout(() => { toast.classList.remove('translate-y-10', 'opacity-0'); }, 50);
+        // 1. Initialisation de la carte Leaflet (Brazzaville, Congo)
+        const BRAZZAVILLE_COORDS = [-4.2634, 15.2429];
+        const map = L.map('map', {
+            zoomControl: true,
+            scrollWheelZoom: true
+        }).setView(BRAZZAVILLE_COORDS, 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const markersGroup = L.layerGroup().addTo(map);
+
+        // 2. Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-9piTV5MvGwqcrLDmUoAp03YscgBgBTQ",
+            authDomain: "wapi-courant-242.firebaseapp.com",
+            projectId: "wapi-courant-242",
+            storageBucket: "wapi-courant-242.firebasestorage.app",
+            messagingSenderId: "162786373567",
+            appId: "1:162786373567:web:c900a9d084cf084e6c3b0a",
+            measurementId: "G-Z2XXR4LQ8Q"
+        };
+
+        let db = null;
+        let unsubscribeListener = null;
+        let globalSignals = [];
+
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.firestore();
+        } catch (e) {
+            console.error("Erreur d'initialisation Firebase:", e);
+            showToast("Erreur lors de l'initialisation de Firebase", "error");
+        }
+
+        // Helper de vérification du statut "Résolu"
+        function isStatusResolved(statusStr) {
+            if (!statusStr) return false;
+            const norm = String(statusStr).trim().toLowerCase();
+            return ['resolved', 'résolu', 'resolu', 'rétabli', 'retabli', 'restored', 'ok', 'normal'].includes(norm);
+        }
+
+        // Toast de notification
+        function showToast(message, type = "info") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            if (!toast || !toastMsg) return;
+
+            toastMsg.innerText = message;
+            toast.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            if (type === "success") {
+                toast.className = "fixed bottom-4 right-4 z-50 transition-all duration-300 px-4 py-3 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-xs font-semibold shadow-2xl flex items-center space-x-2";
+            } else if (type === "error") {
+                toast.className = "fixed bottom-4 right-4 z-50 transition-all duration-300 px-4 py-3 rounded-xl bg-rose-950/90 border border-rose-500/40 text-xs font-semibold shadow-2xl flex items-center space-x-2";
+            } else {
+                toast.className = "fixed bottom-4 right-4 z-50 transition-all duration-300 px-4 py-3 rounded-xl bg-cardbg border border-cardborder text-xs font-semibold shadow-2xl flex items-center space-x-2";
+            }
+
             setTimeout(() => {
-                toast.classList.add('translate-y-10', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
+                toast.classList.add('opacity-0', 'translate-y-10', 'pointer-events-none');
             }, 3000);
         }
 
-        // --- LEAFLET MAP INITIALIZATION ---
-        function initMap() {
-            if (map) return;
-            // Center default on Brazzaville / Congo
-            map = L.map('map').setView([-4.2634, 15.2825], 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-        }
+        // Écoute en temps réel de Firestore
+        function initRealtimeSync() {
+            if (!db) return;
 
-        function updateMapMarkers() {
-            if (!map) return;
-            
-            // Clear existing markers
-            Object.values(mapMarkers).forEach(m => map.removeLayer(m));
-            mapMarkers = {};
+            const reloadIcon = document.getElementById('reload-icon');
+            if (reloadIcon) reloadIcon.classList.add('animate-spin');
 
-            appState.outages.forEach(outage => {
-                if (!outage.lat || !outage.lng) return;
+            if (unsubscribeListener) {
+                unsubscribeListener();
+            }
 
-                const isResolved = outage.status === 'RESOLVED';
-                const markerColor = isResolved ? '#10b981' : '#f59e0b';
-
-                const customIcon = L.divIcon({
-                    className: 'custom-leaflet-marker',
-                    html: `<div style="background-color: ${markerColor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${markerColor}"></div>`,
-                    iconSize: [14, 14]
+            unsubscribeListener = db.collection("wapi_signals").onSnapshot((snapshot) => {
+                const fetchedSignals = [];
+                snapshot.forEach((doc) => {
+                    fetchedSignals.push({ id: doc.id, ...doc.data() });
                 });
 
-                const marker = L.marker([outage.lat, outage.lng], { icon: customIcon }).addTo(map);
-                marker.bindPopup(`
-                    <div style="font-family: sans-serif; font-size: 11px;">
-                        <strong style="color: #0f172a;">${outage.location}</strong><br/>
-                        <p style="margin: 4px 0;">${outage.description}</p>
-                        <span style="color: ${markerColor}; font-weight: bold;">Statut: ${isResolved ? 'Rétabli' : 'En cours'}</span>
-                    </div>
-                `);
-                mapMarkers[outage.id] = marker;
+                renderDashboard(fetchedSignals);
+
+                if (reloadIcon) {
+                    setTimeout(() => reloadIcon.classList.remove('animate-spin'), 300);
+                }
+            }, (error) => {
+                console.error("Erreur de synchronisation Firestore:", error);
+                showToast("Erreur de synchronisation en temps réel", "error");
+                if (reloadIcon) reloadIcon.classList.remove('animate-spin');
             });
         }
 
-        // --- RENDER FUNCTIONS ---
-        function renderAll() {
-            renderKPIs();
-            renderOutagesTable();
-            renderFAQList();
-            renderSurveysList();
-            updateMapMarkers();
-        }
+        // Rendu global du Tableau de Bord
+        function renderDashboard(signals) {
+            globalSignals = signals;
+            markersGroup.clearLayers();
 
-        function renderKPIs() {
-            const activeCount = appState.outages.filter(o => o.status === 'ACTIVE').length;
-            const resolvedCount = appState.outages.filter(o => o.status === 'RESOLVED').length;
+            let activeCount = 0;
+            let resolvedCount = 0;
+
+            const listContainer = document.getElementById('signals-container');
+            listContainer.innerHTML = '';
+
+            if (signals.length === 0) {
+                listContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Aucun signalement enregistré pour le moment.</p>';
+            }
+
+            signals.forEach((signal, index) => {
+                // Gestion des noms de champs variables
+                const dept = signal.dept || signal.department || signal.ville || 'Arrondissement';
+                const district = signal.district || signal.quartier || 'Secteur non renseigné';
+                const statusStr = signal.status || signal.statut || 'active';
+                const user = signal.user || signal.userName || signal.auteur || 'Anonyme';
+                const isResolved = isStatusResolved(statusStr);
+
+                if (isResolved) {
+                    resolvedCount++;
+                } else {
+                    activeCount++;
+                }
+
+                // Résolution des coordonnées géographiques
+                let lat = Number(signal.lat || signal.latitude);
+                let lng = Number(signal.lng || signal.longitude);
+
+                if (!lat || !lng) {
+                    const normDept = String(dept).toLowerCase().trim();
+                    if (QUARTIER_COORDS[normDept]) {
+                        lat = QUARTIER_COORDS[normDept][0] + (Math.sin(index) * 0.005);
+                        lng = QUARTIER_COORDS[normDept][1] + (Math.cos(index) * 0.005);
+                    } else {
+                        lat = BRAZZAVILLE_COORDS[0] + (Math.sin(index * 1.5) * 0.02);
+                        lng = BRAZZAVILLE_COORDS[1] + (Math.cos(index * 1.5) * 0.02);
+                    }
+                }
+
+                // Ajout sur la carte
+                const markerColor = isResolved ? '#10b981' : '#f59e0b';
+                const customIcon = L.divIcon({
+                    className: 'custom-pin',
+                    html: `<div style="background-color: ${markerColor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${markerColor}"></div>`,
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                });
+
+                L.marker([lat, lng], { icon: customIcon })
+                    .addTo(markersGroup)
+                    .bindPopup(`
+                        <div style="color: #0b0f19; font-size: 12px; font-family: sans-serif; line-height: 1.4;">
+                            <b style="font-size: 13px;">${escapeHtml(dept)}</b><br>
+                            ${escapeHtml(district)}<br>
+                            Statut: <b style="color: ${isResolved ? '#059669' : '#d97706'}">${isResolved ? 'Résolu' : 'En cours'}</b><br>
+                            <span style="color: #6b7280;">Signalé par: ${escapeHtml(user)}</span>
+                        </div>
+                    `);
+
+                // Ajout dans la liste interactive
+                const row = document.createElement('div');
+                row.className = 'p-3 bg-darkbg border border-cardborder rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-gray-600 transition';
+                row.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2.5 h-2.5 rounded-full mt-1.5 ${isResolved ? 'bg-emerald-500 ring-4 ring-emerald-500/20' : 'bg-amber-500 ring-4 ring-amber-500/20'}"></div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-white text-sm">${escapeHtml(dept)}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${isResolved ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                                    ${isResolved ? 'Résolu' : 'En cours'}
+                                </span>
+                            </div>
+                            <span class="text-gray-400 text-xs block mt-0.5">${escapeHtml(district)} • par <strong class="text-gray-300">${escapeHtml(user)}</strong></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 self-end md:self-center">
+                        <button onclick="toggleSignalStatus('${signal.id}', '${statusStr}')" title="Changer le statut" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center space-x-1.5 active:scale-95 ${isResolved ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'}">
+                            <i data-lucide="${isResolved ? 'rotate-ccw' : 'check'}" class="w-3.5 h-3.5"></i>
+                            <span>${isResolved ? 'Marquer En cours' : 'Marquer Résolu'}</span>
+                        </button>
+                        <button onclick="deleteSignal('${signal.id}')" title="Supprimer le signalement" class="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 transition active:scale-95">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(row);
+            });
+
+            // Mise à jour des cartes KPI
+            document.getElementById('kpi-actives').innerText = activeCount;
+            document.getElementById('kpi-resolved').innerText = resolvedCount;
+            
             const total = activeCount + resolvedCount;
             const rate = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
-            const activeSurveys = appState.surveys.filter(s => s.active).length;
+            document.getElementById('kpi-rate').innerText = rate + '%';
+            
+            const badge = document.getElementById('signals-count-badge');
+            if (badge) badge.innerText = `${total} signalement${total > 1 ? 's' : ''}`;
 
-            document.getElementById('kpi-active-outages').textContent = activeCount;
-            document.getElementById('kpi-resolved-outages').textContent = resolvedCount;
-            document.getElementById('kpi-resolution-rate').textContent = `${rate}%`;
-            document.getElementById('kpi-active-surveys').textContent = activeSurveys;
+            lucide.createIcons();
         }
 
-        function renderOutagesTable() {
-            const tbody = document.getElementById('outages-table-body');
-            const searchVal = document.getElementById('search-outages-input').value.toLowerCase();
-            const filterVal = document.getElementById('filter-outages-status').value;
+        // Action: Basculer le statut d'un signalement dans Firestore
+        async function toggleSignalStatus(docId, currentStatus) {
+            if (!db) return;
+            const newStatus = isStatusResolved(currentStatus) ? 'coupure' : 'resolved';
+            try {
+                await db.collection("wapi_signals").doc(docId).update({
+                    status: newStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast(`Statut mis à jour : ${newStatus === 'resolved' ? 'Résolu' : 'En cours'}`, "success");
+            } catch (err) {
+                console.error("Erreur lors de la mise à jour :", err);
+                showToast("Échec de la mise à jour dans Firestore", "error");
+            }
+        }
 
-            tbody.innerHTML = '';
+        // Action: Supprimer un signalement de Firestore
+        async function deleteSignal(docId) {
+            if (!db) return;
+            if (!confirm("Voulez-vous vraiment supprimer ce signalement ? Cette action sera répercutée immédiatement chez les utilisateurs.")) {
+                return;
+            }
+            try {
+                await db.collection("wapi_signals").doc(docId).delete();
+                showToast("Signalement supprimé avec succès", "success");
+            } catch (err) {
+                console.error("Erreur de suppression :", err);
+                showToast("Échec de la suppression", "error");
+            }
+        }
 
-            const filtered = appState.outages.filter(o => {
-                const matchesSearch = o.location.toLowerCase().includes(searchVal) || o.description.toLowerCase().includes(searchVal);
-                const matchesStatus = filterVal === 'ALL' || o.status === filterVal;
-                return matchesSearch && matchesStatus;
-            });
+        // Reload Manuel
+        function reloadFirestore() {
+            initRealtimeSync();
+            showToast("Données Firestore rechargées", "info");
+        }
 
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-500">Aucun signalement trouvé.</td></tr>`;
+        // Exporter en CSV
+        function exportCSV() {
+            if (!globalSignals || globalSignals.length === 0) {
+                showToast("Aucune donnée disponible pour l'exportation", "error");
                 return;
             }
 
-            filtered.forEach(o => {
-                const tr = document.createElement('tr');
-                const isResolved = o.status === 'RESOLVED';
-                const dateStr = new Date(o.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+            let csvRows = ["ID,Departement,Quartier,Statut,Utilisateur,Latitude,Longitude"];
+            globalSignals.forEach(s => {
+                const dept = s.dept || s.department || s.ville || '';
+                const district = s.district || s.quartier || '';
+                const status = s.status || s.statut || '';
+                const user = s.user || s.userName || s.auteur || '';
+                const lat = s.lat || s.latitude || '';
+                const lng = s.lng || s.longitude || '';
 
-                tr.innerHTML = `
-                    <td class="p-3.5 font-semibold text-white">${o.location}</td>
-                    <td class="p-3.5 text-slate-300">${o.description}</td>
-                    <td class="p-3.5 text-slate-400">${dateStr}</td>
-                    <td class="p-3.5">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-bold ${isResolved ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">
-                            ${isResolved ? 'Rétabli' : 'En cours'}
-                        </span>
-                    </td>
-                    <td class="p-3.5 text-right space-x-1">
-                        ${!isResolved ? `
-                            <button onclick="toggleOutageStatus('${o.id}', 'RESOLVED')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-semibold transition-all">
-                                <i class="fas fa-check"></i> Résoudre
-                            </button>
-                        ` : `
-                            <button onclick="toggleOutageStatus('${o.id}', 'ACTIVE')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[11px] font-semibold transition-all">
-                                <i class="fas fa-undo"></i> Réouvrir
-                            </button>
-                        `}
-                        <button onclick="deleteOutage('${o.id}')" class="px-2 py-1 bg-slate-800 hover:bg-red-600/30 text-red-400 hover:text-red-300 rounded-lg text-[11px] transition-all">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                const row = [
+                    `"${s.id || ''}"`,
+                    `"${dept.replace(/"/g, '""')}"`,
+                    `"${district.replace(/"/g, '""')}"`,
+                    `"${status.replace(/"/g, '""')}"`,
+                    `"${user.replace(/"/g, '""')}"`,
+                    `"${lat}"`,
+                    `"${lng}"`
+                ];
+                csvRows.push(row.join(','));
             });
-        }
 
-        function renderFAQList() {
-            const container = document.getElementById('faq-list-container');
-            container.innerHTML = '';
-
-            if (appState.faq.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 text-xs">Aucune question dans la FAQ.</p>`;
-                return;
-            }
-
-            appState.faq.forEach(item => {
-                const card = document.createElement('div');
-                card.className = "p-3.5 bg-slate-950 border border-slate-800 rounded-xl flex items-start justify-between gap-3";
-                card.innerHTML = `
-                    <div class="space-y-1">
-                        <h4 class="text-xs font-bold text-white">${item.question}</h4>
-                        <p class="text-xs text-slate-400">${item.answer}</p>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button onclick="toggleFAQVisibility('${item.id}')" class="px-2 py-1 text-xs rounded-lg ${item.visible ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-500'}">
-                            <i class="fas ${item.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
-                        </button>
-                        <button onclick="deleteFAQ('${item.id}')" class="px-2 py-1 bg-slate-800 hover:bg-red-600/30 text-red-400 rounded-lg text-xs">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function renderSurveysList() {
-            const container = document.getElementById('surveys-list-container');
-            container.innerHTML = '';
-
-            if (appState.surveys.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 text-xs col-span-2">Aucun sondage en cours.</p>`;
-                return;
-            }
-
-            appState.surveys.forEach(survey => {
-                const totalVotes = (survey.votesA || 0) + (survey.votesB || 0);
-                const pctA = totalVotes > 0 ? Math.round(((survey.votesA || 0) / totalVotes) * 100) : 0;
-                const pctB = totalVotes > 0 ? (100 - pctA) : 0;
-
-                const card = document.createElement('div');
-                card.className = "p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3";
-                card.innerHTML = `
-                    <div class="flex justify-between items-start gap-2">
-                        <h4 class="text-xs font-bold text-white">${survey.title}</h4>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${survey.active ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-slate-800 text-slate-500'}">
-                            ${survey.active ? 'Actif' : 'Clôturé'}
-                        </span>
-                    </div>
-                    <div class="space-y-2 text-xs">
-                        <div>
-                            <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                                <span>${survey.optionA}</span>
-                                <span>${pctA}% (${survey.votesA || 0})</span>
-                            </div>
-                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                <div class="bg-purple-500 h-full" style="width: ${pctA}%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                                <span>${survey.optionB}</span>
-                                <span>${pctB}% (${survey.votesB || 0})</span>
-                            </div>
-                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                <div class="bg-amber-500 h-full" style="width: ${pctB}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex justify-end space-x-2 pt-2 border-t border-slate-900">
-                        <button onclick="toggleSurveyStatus('${survey.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px]">
-                            ${survey.active ? 'Clôturer' : 'Réactiver'}
-                        </button>
-                        <button onclick="deleteSurvey('${survey.id}')" class="px-2 py-1 bg-slate-800 hover:bg-red-600/30 text-red-400 rounded-lg text-[11px]">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // --- INTERACTION CONTROLLERS & ACTIONS ---
-        function toggleOutageStatus(id, newStatus) {
-            if (isFirebaseActive && db) {
-                db.collection('outages').doc(id).update({ status: newStatus })
-                  .then(() => showToast("Statut du signalement mis à jour dans Firebase"))
-                  .catch(err => showToast("Erreur Firebase: " + err.message, "error"));
-            } else {
-                const item = appState.outages.find(o => o.id === id);
-                if (item) {
-                    item.status = newStatus;
-                    renderAll();
-                    showToast(`Signalement marqué comme ${newStatus === 'RESOLVED' ? 'Résolu' : 'En cours'}`);
-                }
-            }
-        }
-
-        function deleteOutage(id) {
-            if (isFirebaseActive && db) {
-                db.collection('outages').doc(id).delete()
-                  .then(() => showToast("Signalement supprimé de Firebase"))
-                  .catch(err => showToast("Erreur lors de la suppression", "error"));
-            } else {
-                appState.outages = appState.outages.filter(o => o.id !== id);
-                renderAll();
-                showToast("Signalement supprimé avec succès");
-            }
-        }
-
-        function toggleFAQVisibility(id) {
-            if (isFirebaseActive && db) {
-                const item = appState.faq.find(f => f.id === id);
-                if (item) {
-                    db.collection('faq').doc(id).update({ visible: !item.visible })
-                      .then(() => showToast("Visibilité FAQ mise à jour"))
-                      .catch(err => showToast("Erreur de mise à jour FAQ", "error"));
-                }
-            } else {
-                const item = appState.faq.find(f => f.id === id);
-                if (item) {
-                    item.visible = !item.visible;
-                    renderFAQList();
-                    showToast("Visibilité FAQ modifiée");
-                }
-            }
-        }
-
-        function deleteFAQ(id) {
-            if (isFirebaseActive && db) {
-                db.collection('faq').doc(id).delete()
-                  .then(() => showToast("Question FAQ supprimée de Firebase"))
-                  .catch(err => showToast("Erreur de suppression FAQ", "error"));
-            } else {
-                appState.faq = appState.faq.filter(f => f.id !== id);
-                renderFAQList();
-                showToast("Question FAQ supprimée");
-            }
-        }
-
-        function toggleSurveyStatus(id) {
-            if (isFirebaseActive && db) {
-                const survey = appState.surveys.find(s => s.id === id);
-                if (survey) {
-                    db.collection('surveys').doc(id).update({ active: !survey.active })
-                      .then(() => showToast("Statut du sondage mis à jour"))
-                      .catch(err => showToast("Erreur mise à jour sondage", "error"));
-                }
-            } else {
-                const survey = appState.surveys.find(s => s.id === id);
-                if (survey) {
-                    survey.active = !survey.active;
-                    renderSurveysList();
-                    renderKPIs();
-                    showToast("Statut du sondage modifié");
-                }
-            }
-        }
-
-        function deleteSurvey(id) {
-            if (isFirebaseActive && db) {
-                db.collection('surveys').doc(id).delete()
-                  .then(() => showToast("Sondage supprimé de Firebase"))
-                  .catch(err => showToast("Erreur suppression sondage", "error"));
-            } else {
-                appState.surveys = appState.surveys.filter(s => s.id !== id);
-                renderSurveysList();
-                renderKPIs();
-                showToast("Sondage supprimé");
-            }
-        }
-
-        // CSV Export Functionality
-        function exportToCSV() {
-            let csvContent = "data:text/csv;charset=utf-8,ID,Quartier/Zone,Description,Statut,Date\n";
-            appState.outages.forEach(o => {
-                const row = `"${o.id}","${o.location}","${o.description}","${o.status}","${o.timestamp}"`;
-                csvContent += row + "\n";
-            });
-            const encodedUri = encodeURI(csvContent);
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `wapi_courant_export_${Date.now()}.csv`);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `wapi_signals_export_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showToast("Exportation CSV téléchargée");
+            showToast("Fichier CSV généré", "success");
         }
 
-        // --- FIREBASE SYNC & INITIALIZATION ---
-        function initFirebase(config) {
-            try {
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(config);
-                }
-                db = firebase.firestore();
-                isFirebaseActive = true;
-
-                // Update UI Badges
-                document.getElementById('connection-status-badge').textContent = 'FIREBASE EN DIRECT';
-                document.getElementById('connection-status-badge').className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-                document.getElementById('connection-desc').textContent = 'Synchronisé avec la base Firestore';
-
-                // Real-time Firestore Listeners
-                db.collection('outages').onSnapshot(snapshot => {
-                    appState.outages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderAll();
-                }, err => console.warn("Sync error outages:", err));
-
-                db.collection('faq').onSnapshot(snapshot => {
-                    appState.faq = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderFAQList();
-                }, err => console.warn("Sync error faq:", err));
-
-                db.collection('surveys').onSnapshot(snapshot => {
-                    appState.surveys = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderSurveysList();
-                    renderKPIs();
-                }, err => console.warn("Sync error surveys:", err));
-
-                showToast("Connexion Firebase établie avec succès !");
-            } catch (err) {
-                console.error("Firebase init failed:", err);
-                isFirebaseActive = false;
-                showToast("Erreur de connexion Firebase. Passage en Mode Démo.", "error");
-            }
+        function toggleMenu() {
+            showToast("Menu Administrateur", "info");
         }
 
-        // --- DOM EVENT LISTENERS ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initMap();
-            renderAll();
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
 
-            // Mobile Menu Toggle
-            const toggleBtn = document.getElementById('mobile-menu-toggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-
-            function toggleSidebar() {
-                sidebar.classList.toggle('-translate-x-full');
-                overlay.classList.toggle('hidden');
-            }
-
-            toggleBtn?.addEventListener('click', toggleSidebar);
-            overlay?.addEventListener('click', toggleSidebar);
-
-            // View Switcher Buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.nav-btn').forEach(b => {
-                        b.classList.remove('active', 'bg-amber-500', 'text-slate-950', 'font-semibold', 'shadow-lg');
-                        b.classList.add('text-slate-300');
-                    });
-                    btn.classList.add('active', 'bg-amber-500', 'text-slate-950', 'font-semibold', 'shadow-lg');
-                    btn.classList.remove('text-slate-300');
-
-                    document.querySelectorAll('.view-panel').forEach(panel => panel.classList.add('hidden'));
-                    const targetView = document.getElementById(btn.dataset.target);
-                    if (targetView) targetView.classList.remove('hidden');
-
-                    if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
-                        toggleSidebar();
-                    }
-                });
-            });
-
-            // Outages Table Filter Actions
-            document.getElementById('apply-outages-filter').addEventListener('click', () => {
-                renderOutagesTable();
-                showToast("Filtres appliqués avec succès");
-            });
-
-            document.getElementById('search-outages-input').addEventListener('input', () => {
-                renderOutagesTable();
-            });
-
-            // Add FAQ Form
-            document.getElementById('add-faq-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const q = document.getElementById('faq-question-input').value;
-                const a = document.getElementById('faq-answer-input').value;
-
-                if (isFirebaseActive && db) {
-                    db.collection('faq').add({ question: q, answer: a, visible: true, createdAt: new Date().toISOString() })
-                      .then(() => {
-                          showToast("Question publiée dans Firebase");
-                          e.target.reset();
-                      });
-                } else {
-                    appState.faq.push({ id: 'faq-' + Date.now(), question: q, answer: a, visible: true });
-                    renderFAQList();
-                    e.target.reset();
-                    showToast("Question ajoutée à la FAQ");
-                }
-            });
-
-            // Add Survey Form
-            document.getElementById('add-survey-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const title = document.getElementById('survey-title-input').value;
-                const optA = document.getElementById('survey-opt1-input').value;
-                const optB = document.getElementById('survey-opt2-input').value;
-
-                if (isFirebaseActive && db) {
-                    db.collection('surveys').add({
-                        title: title, optionA: optA, optionB: optB, votesA: 0, votesB: 0, active: true, createdAt: new Date().toISOString()
-                    }).then(() => {
-                        showToast("Sondage lancé dans Firebase");
-                        e.target.reset();
-                    });
-                } else {
-                    appState.surveys.push({
-                        id: 'surv-' + Date.now(), title: title, optionA: optA, optionB: optB, votesA: 0, votesB: 0, active: true
-                    });
-                    renderSurveysList();
-                    renderKPIs();
-                    e.target.reset();
-                    showToast("Nouveau sondage créé");
-                }
-            });
-
-            // Global Actions
-            document.getElementById('reload-btn').addEventListener('click', () => {
-                renderAll();
-                showToast("Données rafraîchies");
-            });
-
-            document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
-
-            // Modal Config Toggle
-            const configModal = document.getElementById('config-modal');
-            document.getElementById('open-config-btn').addEventListener('click', () => configModal.classList.remove('hidden'));
-            document.getElementById('close-config-btn').addEventListener('click', () => configModal.classList.add('hidden'));
-
-            // Firebase Config Form Submit
-            document.getElementById('firebase-config-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const jsonStr = document.getElementById('firebase-json-input').value.trim();
-                try {
-                    const parsedConfig = JSON.parse(jsonStr);
-                    initFirebase(parsedConfig);
-                    configModal.classList.add('hidden');
-                } catch (err) {
-                    showToast("JSON Firebase invalide. Veuillez vérifier le format.", "error");
-                }
-            });
-
-            document.getElementById('use-demo-mode-btn').addEventListener('click', () => {
-                isFirebaseActive = false;
-                document.getElementById('connection-status-badge').textContent = 'MODE DÉMO';
-                document.getElementById('connection-status-badge').className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
-                document.getElementById('connection-desc').textContent = 'Données de démonstration interactives';
-                configModal.classList.add('hidden');
-                renderAll();
-                showToast("Basculé en Mode Démo", "warning");
-            });
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initRealtimeSync();
         });
     </script>
 </body>
