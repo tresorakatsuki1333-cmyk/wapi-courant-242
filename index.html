@@ -1,1500 +1,509 @@
 <!DOCTYPE html>
-<html lang="fr" class="h-full">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wapi Courant 242 - Observatoire Citoyen de l'Électricité au Congo</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Wapi Courant 242 - Suivi du réseau électrique au Congo</title>
+    
+    <!-- Tailwind CSS pour un design moderne & fluide -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#fffbe1',
-                            100: '#fff3b8',
-                            400: '#facc15',
-                            500: '#eab308',
-                            600: '#ca8a04',
-                            700: '#a16207',
-                            900: '#422006',
-                        },
-                        congo: {
-                            green: '#009543',
-                            yellow: '#FBDE07',
-                            red: '#DC241F'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- FontAwesome & Lucide Icons -->
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS & JS for OpenStreetMap -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Styles personnalisés pour la carte et le scroll -->
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); }
-        .dark .glass { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 9999px; }
-        .pulse-glow { animation: pulse 2s infinite; }
-        @keyframes pulse {
+        /* Responsive height setup */
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        #map { width: 100%; height: 100%; z-index: 1; }
+        
+        /* Personnalisation Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Pulse Animation pour l'assistant IA */
+        @keyframes pulse-soft {
             0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.85; }
+            50% { transform: scale(1.05); opacity: 0.9; }
         }
+        .ai-pulse { animation: pulse-soft 2s infinite ease-in-out; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-300">
+<body class="bg-slate-100 text-slate-800 flex flex-col h-screen overflow-hidden">
 
-    <!-- APP CONTAINER -->
-    <div id="app" class="flex-grow flex flex-col min-h-screen">
-        <!-- TOP NAVIGATION BAR -->
-        <header class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 glass transition-all">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
-                    <!-- Logo & Title -->
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 via-emerald-600 to-red-600 p-0.5 shadow-md flex items-center justify-center">
-                            <div class="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center text-yellow-400 font-extrabold text-xl">
-                                ⚡
-                            </div>
-                        </div>
-                        <div>
-                            <span class="text-lg font-black tracking-tight bg-gradient-to-r from-yellow-500 via-emerald-500 to-red-500 bg-clip-text text-transparent">
-                                Wapi Courant 242
-                            </span>
-                            <span class="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ml-2">
-                                Observatoire Citoyen 🇨🇬
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Navigation Links -->
-                    <nav id="nav-menu" class="hidden md:flex items-center space-x-1 lg:space-x-2">
-                        <button onclick="switchTab('map')" class="nav-btn px-3 py-2 rounded-lg text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition text-emerald-600 dark:text-emerald-400" data-tab="map">
-                            <i class="fa-solid fa-map-location-dot mr-1.5"></i> <span data-i18n="nav_map">Carte & Direct</span>
-                        </button>
-                        <button onclick="switchTab('agora')" class="nav-btn px-3 py-2 rounded-lg text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition" data-tab="agora">
-                            <i class="fa-solid fa-comments mr-1.5"></i> <span data-i18n="nav_agora">Agora 242</span>
-                        </button>
-                        <button onclick="switchTab('ai')" class="nav-btn px-3 py-2 rounded-lg text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition" data-tab="ai">
-                            <i class="fa-solid fa-robot mr-1.5 text-yellow-500"></i> <span data-i18n="nav_ai">Assistant Wapi</span>
-                        </button>
-                        <button onclick="switchTab('help')" class="nav-btn px-3 py-2 rounded-lg text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition" data-tab="help">
-                            <i class="fa-solid fa-circle-question mr-1.5"></i> <span data-i18n="nav_help">Aide & FAQ</span>
-                        </button>
-                    </nav>
-
-                    <!-- User & Controls -->
-                    <div class="flex items-center gap-3">
-                        <button onclick="toggleTheme()" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Thème Mode">
-                            <i class="fa-solid fa-moon dark:hidden text-slate-700"></i>
-                            <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
-                        </button>
-
-                        <!-- User Profile Menu Widget (Logged In) -->
-                        <div id="user-widget" class="hidden flex items-center gap-2">
-                            <button onclick="switchTab('profile')" class="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-700">
-                                <div id="nav-avatar" class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-sm font-bold overflow-hidden shadow">
-                                    ?
-                                </div>
-                                <span id="nav-username" class="hidden lg:inline text-xs font-bold max-w-[100px] truncate">Citoyen</span>
-                            </button>
-                            <button onclick="switchTab('settings')" class="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200" title="Paramètres">
-                                <i class="fa-solid fa-gear"></i>
-                            </button>
-                            <button onclick="logout()" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" title="Déconnexion">
-                                <i class="fa-solid fa-power-off"></i>
-                            </button>
-                        </div>
-
-                        <!-- Auth Login Trigger (Logged Out) -->
-                        <div id="auth-widget">
-                            <button onclick="openAuthModal('login')" class="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition">
-                                <i class="fa-solid fa-right-to-bracket mr-1"></i> <span data-i18n="btn_login">Connexion</span>
-                            </button>
-                        </div>
-
-                        <!-- Mobile Menu Button -->
-                        <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-slate-600 dark:text-slate-300">
-                            <i class="fa-solid fa-bars text-xl"></i>
-                        </button>
-                    </div>
-                </div>
+    <!-- HEADER SUPERIEUR -->
+    <header class="bg-blue-700 text-white px-4 py-3 flex justify-between items-center shadow-md z-30 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-yellow-400 text-blue-900 p-2 rounded-lg font-bold text-xl leading-none shadow">
+                ⚡
             </div>
-
-            <!-- Mobile Nav Menu -->
-            <div id="mobile-menu" class="hidden md:hidden border-t border-slate-200 dark:border-slate-800 px-4 pt-2 pb-4 space-y-2 bg-slate-50 dark:bg-slate-900">
-                <button onclick="switchTab('map'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-map-location-dot w-6 text-emerald-600"></i> Carte & Direct
-                </button>
-                <button onclick="switchTab('agora'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-comments w-6 text-emerald-600"></i> Agora 242 (Salon)
-                </button>
-                <button onclick="switchTab('ai'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-robot w-6 text-yellow-500"></i> Assistant Wapi IA
-                </button>
-                <button onclick="switchTab('help'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-circle-question w-6 text-emerald-600"></i> Aide & FAQ
-                </button>
-                <button onclick="switchTab('profile'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-user w-6 text-emerald-600"></i> Mon Profil
-                </button>
-                <button onclick="switchTab('settings'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-800">
-                    <i class="fa-solid fa-gear w-6 text-emerald-600"></i> Paramètres & À Propos
-                </button>
+            <div>
+                <h1 class="font-extrabold text-lg sm:text-xl tracking-tight leading-none">Wapi Courant 242</h1>
+                <p class="text-xs text-blue-200 hidden sm:block">Réseau citoyen d'information sur l'électricité au Congo</p>
             </div>
-        </header>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <button onclick="shareAppWhatsApp()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 shadow transition">
+                <i class="fa-brands fa-whatsapp text-lg"></i>
+                <span class="hidden md:inline">Partager</span>
+            </button>
+            <div id="user-profile-badge" class="bg-blue-800/80 border border-blue-500/50 px-3 py-1.5 rounded-lg text-xs sm:text-sm flex items-center gap-2 font-medium">
+                <i class="fa-solid fa-user-circle text-blue-300"></i>
+                <span id="badge-username">Chargement...</span>
+            </div>
+        </div>
+    </header>
 
-        <!-- MAIN CONTENT AREA -->
-        <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- SIDEBAR (CHAT & ASSISTANT IA) -->
+        <aside id="sidebar" class="w-full md:w-[420px] bg-white border-r border-slate-200 flex flex-col z-20 shrink-0 absolute md:relative inset-0 md:inset-auto transition-transform duration-300 transform -translate-x-full md:translate-x-0">
             
-            <!-- ALERT BANNER -->
-            <div id="toast-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none"></div>
+            <!-- ONGLET NAVIGATION -->
+            <div class="flex bg-slate-100 border-b border-slate-200">
+                <button id="btn-tab-chat" onclick="switchSidebarTab('chat')" class="flex-1 py-3 px-4 font-bold text-sm text-blue-700 border-b-2 border-blue-700 bg-white flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-comments"></i> Communauté
+                </button>
+                <button id="btn-tab-ai" onclick="switchSidebarTab('ai')" class="flex-1 py-3 px-4 font-bold text-sm text-slate-500 hover:text-blue-600 flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-robot text-purple-600"></i> Assistant IA
+                </button>
+                <button onclick="toggleSidebarMobile()" class="md:hidden px-3 text-slate-500 hover:text-slate-800">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
 
-            <!-- TAB 1: CARTE & SIGNALEMENTS -->
-            <section id="tab-map" class="tab-content block space-y-6">
-                <!-- Status Header Counters -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-950/50 text-red-600 flex items-center justify-center text-xl font-bold">
-                            <i class="fa-solid fa-bolt-lightning"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="stat_outages">Coupures Actives</p>
-                            <h3 id="cnt-outages" class="text-2xl font-black text-red-600 dark:text-red-400">0</h3>
-                        </div>
+            <!-- TAB 1 : CHAT PAR DÉPARTEMENT -->
+            <div id="tab-content-chat" class="flex-1 flex flex-col overflow-hidden">
+                
+                <!-- SELECTEUR DES 16 SALONS -->
+                <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Salon par département :</label>
+                    <select id="salon-select" onchange="onSalonChange(this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="general" selected>🇨🇬 Général (Tout le Congo)</option>
+                        <option value="brazzaville">📍 Brazzaville</option>
+                        <option value="pointe-noire">📍 Pointe-Noire</option>
+                        <option value="bouenza">📍 Bouenza (Madingou)</option>
+                        <option value="congo-oubangui">📍 Congo-Oubangui (Mossaka)</option>
+                        <option value="cuvette">📍 Cuvette (Owando)</option>
+                        <option value="cuvette-ouest">📍 Cuvette-Ouest (Ewo)</option>
+                        <option value="djoue-lefini">📍 Djoué-Léfini (Odziba)</option>
+                        <option value="kouilou">📍 Kouilou (Madingo-Kayes)</option>
+                        <option value="lekoumou">📍 Lékoumou (Sibiti)</option>
+                        <option value="likouala">📍 Likouala (Impfondo)</option>
+                        <option value="niari">📍 Niari (Dolisie)</option>
+                        <option value="nkeni-alima">📍 Nkéni-Alima (Gamboma)</option>
+                        <option value="plateaux">📍 Plateaux (Djambala)</option>
+                        <option value="pool">📍 Pool (Kinkala)</option>
+                        <option value="sangha">📍 Sangha (Ouesso)</option>
+                    </select>
+                </div>
+
+                <!-- LISTE DES MESSAGES DU CHAT -->
+                <div id="chat-messages-box" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/50">
+                    <!-- Généré dynamiquement en JS -->
+                </div>
+
+                <!-- FORMULAIRE D'ENVOI CHAT -->
+                <form onsubmit="handleSendChatMessage(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
+                    <input type="text" id="chat-input-text" placeholder="Écrire aux citoyens de la zone..." required class="flex-1 bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- TAB 2 : ASSISTANT IA -->
+            <div id="tab-content-ai" class="flex-1 flex flex-col overflow-hidden hidden">
+                <div class="p-3 bg-purple-50 border-b border-purple-100 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-lg ai-pulse shadow">
+                        🤖
                     </div>
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-yellow-100 dark:bg-yellow-950/50 text-yellow-600 flex items-center justify-center text-xl font-bold">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="stat_unstable">Réseau Instable</p>
-                            <h3 id="cnt-unstable" class="text-2xl font-black text-yellow-600 dark:text-yellow-400">0</h3>
-                        </div>
-                    </div>
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center text-xl font-bold">
-                            <i class="fa-solid fa-plug-circle-check"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="stat_restored">Courant Rétabli</p>
-                            <h3 id="cnt-restored" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">0</h3>
-                        </div>
-                    </div>
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center text-xl font-bold">
-                            <i class="fa-solid fa-map-pin"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-i18n="stat_dept_count">Départements</p>
-                            <h3 class="text-2xl font-black text-slate-800 dark:text-slate-100">15 / 15</h3>
-                        </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-purple-900">Assistant Énergie Wapi IA</h3>
+                        <p class="text-xs text-purple-700">Conseils réseau, protection & pannes</p>
                     </div>
                 </div>
 
-                <!-- Main Grid: Map & Controls -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Map Column -->
-                    <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-lg overflow-hidden flex flex-col">
-                        <!-- Map Bar Controls -->
-                        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/50">
-                            <div class="flex items-center gap-2">
-                                <label class="text-xs font-bold text-slate-500" data-i18n="filter_dept">Filtrer par Département :</label>
-                                <select id="map-dept-filter" onchange="filterMapByDept()" class="text-sm font-semibold rounded-xl border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 py-1.5 px-3 focus:ring-2 focus:ring-emerald-500">
-                                    <option value="ALL">🌐 Tous les 15 départements</option>
-                                    <!-- Options injected dynamically -->
-                                </select>
-                            </div>
-                            <button onclick="resetMapView()" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
-                                <i class="fa-solid fa-arrows-rotate mr-1"></i> Réinitialiser la Vue
-                            </button>
-                        </div>
-                        <!-- OSM Map Container -->
-                        <div id="map-container" class="w-full h-[450px] relative z-10"></div>
-                    </div>
-
-                    <!-- Report Creation Panel -->
-                    <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-lg flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between mb-4">
-                                <h2 class="text-lg font-bold flex items-center gap-2">
-                                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
-                                    <span data-i18n="title_new_report">Publier un Signalement</span>
-                                </h2>
-                                <span class="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 rounded-full font-bold">En direct</span>
-                            </div>
-
-                            <form id="report-form" onsubmit="handleReportSubmit(event)" class="space-y-4">
-                                <!-- Status Selector -->
-                                <div>
-                                    <label class="block text-xs font-bold mb-1.5" data-i18n="lbl_power_status">État du courant *</label>
-                                    <div class="grid grid-cols-3 gap-2">
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="report-status" value="outage" class="peer hidden" checked>
-                                            <div class="p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-center peer-checked:border-red-500 peer-checked:bg-red-50 dark:peer-checked:bg-red-950/40 peer-checked:text-red-600 transition font-bold text-xs">
-                                                🚨 Coupure
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="report-status" value="unstable" class="peer hidden">
-                                            <div class="p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-center peer-checked:border-yellow-500 peer-checked:bg-yellow-50 dark:peer-checked:bg-yellow-950/40 peer-checked:text-yellow-600 transition font-bold text-xs">
-                                                ⚠️ Instable
-                                            </div>
-                                        </label>
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="report-status" value="restored" class="peer hidden">
-                                            <div class="p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-950/40 peer-checked:text-emerald-600 transition font-bold text-xs">
-                                                ✅ Rétabli
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Department Select -->
-                                <div>
-                                    <label class="block text-xs font-bold mb-1" data-i18n="lbl_dept">Département (15) *</label>
-                                    <select id="report-dept" required class="w-full text-sm font-semibold rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5 focus:ring-2 focus:ring-emerald-500">
-                                        <!-- Injected dynamically -->
-                                    </select>
-                                </div>
-
-                                <!-- Quarter / Zone -->
-                                <div>
-                                    <label class="block text-xs font-bold mb-1" data-i18n="lbl_quarter">Quartier / Avenue / Zone *</label>
-                                    <input type="text" id="report-quarter" required placeholder="Ex: Poto-Poto, Avenue de la Paix" class="w-full text-sm font-medium rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5 focus:ring-2 focus:ring-emerald-500">
-                                </div>
-
-                                <!-- Remarks -->
-                                <div>
-                                    <label class="block text-xs font-bold mb-1" data-i18n="lbl_details">Détails ou remarques</label>
-                                    <textarea id="report-details" rows="2" placeholder="Baisse de tension, câble rompu, travaux..." class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5 focus:ring-2 focus:ring-emerald-500"></textarea>
-                                </div>
-
-                                <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5">
-                                    <i class="fa-solid fa-paper-plane mr-2"></i> <span data-i18n="btn_broadcast">Diffuser le Signalement</span>
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- Quick Community Poll -->
-                        <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 bg-emerald-50/50 dark:bg-slate-900/50 p-3 rounded-2xl">
-                            <p class="text-xs font-extrabold text-emerald-800 dark:text-emerald-400 mb-2">⚡ Sondage Éclair Citoyen</p>
-                            <p class="text-xs text-slate-600 dark:text-slate-300 mb-2">Avez-vous eu du courant +6h d'affilée aujourd'hui ?</p>
-                            <div class="flex gap-2">
-                                <button onclick="votePoll('yes')" class="flex-1 py-1.5 text-xs bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition">Oui ( <span id="poll-yes-cnt">0</span> )</button>
-                                <button onclick="votePoll('no')" class="flex-1 py-1.5 text-xs bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition">Non ( <span id="poll-no-cnt">0</span> )</button>
-                            </div>
-                        </div>
+                <!-- HISTORIQUE ASSISTANT IA -->
+                <div id="ai-messages-box" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50">
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-sm text-slate-700 leading-relaxed max-w-[90%]">
+                        👋 <strong>Bonjour !</strong> Je suis l'Assistant IA de <strong>Wapi Courant 242</strong>. Posez-moi vos questions sur le réseau électrique, les astuces de conservation ou la gestion des coupures !
                     </div>
                 </div>
 
-                <!-- Recent Live Feed -->
-                <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-lg">
-                    <h3 class="text-base font-bold mb-4 flex items-center justify-between">
-                        <span><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> Derniers Signalements Live</span>
-                        <span class="text-xs font-normal text-slate-400">Mise à jour temps réel</span>
-                    </h3>
-                    <div id="reports-feed-container" class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-                        <!-- Dynamic report cards -->
-                    </div>
-                </div>
-            </section>
+                <!-- FORMULAIRE ASSISTANT IA -->
+                <form onsubmit="handleSendAIMessage(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
+                    <input type="text" id="ai-input-text" placeholder="Posez votre question à l'IA..." required class="flex-1 bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </button>
+                </form>
+            </div>
+        </aside>
 
-            <!-- TAB 2: AGORA 242 (CHAT ROOMS) -->
-            <section id="tab-agora" class="tab-content hidden space-y-4">
-                <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-4 h-[650px]">
-                    <!-- Rooms Sidebar -->
-                    <div class="border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col">
-                        <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3">Salons Citoyens</h3>
-                        <div class="space-y-1 overflow-y-auto custom-scrollbar flex-grow">
-                            <button onclick="selectAgoraRoom('Général')" class="agora-room-btn w-full text-left px-3 py-2.5 rounded-xl font-bold text-xs flex items-center justify-between bg-emerald-600 text-white" data-room="Général">
-                                <span>💬 Général Congo</span>
-                                <span class="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">Live</span>
-                            </button>
-                            <button onclick="selectAgoraRoom('Urgences')" class="agora-room-btn w-full text-left px-3 py-2.5 rounded-xl font-bold text-xs flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-800 text-red-500" data-room="Urgences">
-                                <span>🚨 Urgences & Dépannages</span>
-                            </button>
-                            <button onclick="selectAgoraRoom('Solaires')" class="agora-room-btn w-full text-left px-3 py-2.5 rounded-xl font-bold text-xs flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-800 text-yellow-600" data-room="Solaires">
-                                <span>☀️ Solutions Solaires</span>
-                            </button>
-                            <hr class="my-2 border-slate-200 dark:border-slate-700">
-                            <p class="text-[10px] font-bold text-slate-400 px-2 mb-1">PAR DÉPARTEMENT</p>
-                            <div id="agora-dept-rooms" class="space-y-1">
-                                <!-- Rooms for 15 departments -->
-                            </div>
-                        </div>
-                    </div>
+        <!-- BOUTON FLOTTANT DU MENU MOBILE -->
+        <button onclick="toggleSidebarMobile()" class="md:hidden absolute top-4 left-4 z-10 bg-white text-blue-700 p-3 rounded-full shadow-lg font-bold border border-slate-200">
+            <i class="fa-solid fa-bars text-lg"></i>
+        </button>
 
-                    <!-- Chat Box Area -->
-                    <div class="md:col-span-3 flex flex-col h-full bg-white dark:bg-slate-800">
-                        <!-- Chat Header -->
-                        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-                            <div>
-                                <h3 id="current-room-title" class="font-extrabold text-sm text-slate-900 dark:text-slate-100">Salon : Général Congo</h3>
-                                <p class="text-[11px] text-slate-500">Échangez dans le respect des règles communautaires</p>
-                            </div>
-                            <span class="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full font-semibold">
-                                <i class="fa-solid fa-users mr-1"></i> Communauté 242
-                            </span>
-                        </div>
+        <!-- CONTENEUR DE LA CARTE INTERACTIVE LEAFLET -->
+        <main class="flex-1 relative h-full">
+            <div id="map"></div>
 
-                        <!-- Chat Messages List -->
-                        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/30 dark:bg-slate-900/20">
-                            <!-- Injected messages -->
-                        </div>
+            <!-- BARRE D'ACTIONS ET GPS FLOTTANTE -->
+            <div class="absolute bottom-6 right-6 z-[400] flex flex-col gap-3 items-end">
+                <!-- BOUTON SIGNALER UNE PANNE -->
+                <button onclick="triggerReportCurrentLocation()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 border-2 border-white transition transform active:scale-95">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Signaler une coupure</span>
+                </button>
 
-                        <!-- Input Controls & Audio Recorder -->
-                        <div class="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center gap-2">
-                            <button id="mic-btn" onclick="toggleVoiceRecording()" class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-red-500 hover:text-white transition" title="Enregistrer Message Vocal">
-                                <i class="fa-solid fa-microphone text-sm"></i>
-                            </button>
-                            <input type="text" id="chat-input" placeholder="Écrivez votre message..." onkeydown="if(event.key==='Enter') sendChatMessage()" class="flex-grow rounded-2xl border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 text-sm px-4 py-3 focus:ring-2 focus:ring-emerald-500">
-                            <button onclick="sendChatMessage()" class="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl shadow-md transition">
-                                <i class="fa-solid fa-paper-plane text-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 3: ASSISTANT IA WAPI -->
-            <section id="tab-ai" class="tab-content hidden space-y-4">
-                <div class="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden flex flex-col h-[600px]">
-                    <!-- Header -->
-                    <div class="p-4 bg-gradient-to-r from-yellow-500/10 via-emerald-500/10 to-red-500/10 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-yellow-400 to-emerald-600 text-slate-900 font-black flex items-center justify-center text-xl shadow">
-                                🤖
-                            </div>
-                            <div>
-                                <h3 class="font-extrabold text-sm">Assistant IA Intelligent Wapi</h3>
-                                <p class="text-xs text-slate-500">Expert Réseau Électrique Congo & Conseils</p>
-                            </div>
-                        </div>
-                        <button onclick="clearAIChat()" class="text-xs text-slate-400 hover:text-slate-600 font-semibold">Effacer</button>
-                    </div>
-
-                    <!-- AI Chat Box -->
-                    <div id="ai-chat-box" class="flex-grow p-4 overflow-y-auto space-y-4 custom-scrollbar">
-                        <!-- Welcome message -->
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-yellow-500 text-slate-900 font-bold flex items-center justify-center text-xs flex-shrink-0">W</div>
-                            <div class="bg-slate-100 dark:bg-slate-700 p-3.5 rounded-2xl rounded-tl-none max-w-[85%] text-xs leading-relaxed">
-                                Bonjour ! Je suis <strong>Wapi</strong>, votre assistant virtuel intelligent. Posez-moi des questions sur le réseau électrique congolais, les gestes pour protéger vos appareils, ou l'utilisation de l'application !
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Suggestions -->
-                    <div class="p-2 border-t border-slate-100 dark:border-slate-700/50 flex gap-2 overflow-x-auto custom-scrollbar px-4 bg-slate-50 dark:bg-slate-800">
-                        <button onclick="askAIQuick('Pourquoi y a-t-il des délestages à Brazzaville ?')" class="text-[11px] whitespace-nowrap bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full hover:bg-slate-100 transition">💡 Cause des délestages ?</button>
-                        <button onclick="askAIQuick('Comment protéger mon frigo des baisses de tension ?')" class="text-[11px] whitespace-nowrap bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full hover:bg-slate-100 transition">🔌 Protéger ses appareils</button>
-                        <button onclick="askAIQuick('Combien coûtent les panneaux solaires au Congo ?')" class="text-[11px] whitespace-nowrap bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full hover:bg-slate-100 transition">☀️ Budget Solaire</button>
-                    </div>
-
-                    <!-- Input Bar -->
-                    <div class="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex gap-2">
-                        <input type="text" id="ai-input" placeholder="Posez une question à Wapi..." onkeydown="if(event.key==='Enter') sendAIPrompt()" class="flex-grow text-sm rounded-2xl border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 px-4 py-3 focus:ring-2 focus:ring-yellow-500">
-                        <button onclick="sendAIPrompt()" class="px-5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-slate-900 font-extrabold rounded-2xl shadow transition">
-                            <i class="fa-solid fa-paper-plane"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 4: MON PROFIL (PERSONALIZATION) -->
-            <section id="tab-profile" class="tab-content hidden max-w-2xl mx-auto space-y-6">
-                <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl">
-                    <h2 class="text-xl font-black mb-6 flex items-center gap-2">
-                        <i class="fa-solid fa-id-card text-emerald-600"></i> Mon Profil & Avatar Personnalisé
-                    </h2>
-
-                    <!-- Avatar Config Box -->
-                    <div class="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl mb-6">
-                        <div class="relative group">
-                            <!-- Avatar Display -->
-                            <div id="profile-avatar-display" class="w-24 h-24 rounded-full bg-emerald-600 text-white flex items-center justify-center text-3xl font-extrabold border-4 border-emerald-500 shadow-lg overflow-hidden">
-                                ?
-                            </div>
-                        </div>
-
-                        <div class="flex-grow space-y-3 text-center sm:text-left">
-                            <p class="text-xs font-bold text-slate-400 uppercase">Option A : Photo de profil (Optimisée Canvas)</p>
-                            <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition">
-                                    <i class="fa-solid fa-upload mr-1"></i> Choisir une Photo
-                                    <input type="file" id="profile-photo-input" accept="image/*" onchange="handlePhotoUpload(event)" class="hidden">
-                                </label>
-                                <button onclick="removeAvatarPhoto()" class="bg-red-100 text-red-600 hover:bg-red-200 text-xs font-bold px-3 py-2 rounded-xl transition">
-                                    Supprimer
-                                </button>
-                            </div>
-
-                            <p class="text-xs font-bold text-slate-400 uppercase pt-2">Option B : Emoji Avatar</p>
-                            <!-- Emoji Picker list -->
-                            <div class="flex flex-wrap gap-2 justify-center sm:justify-start" id="emoji-picker-container">
-                                <!-- Dynamic Emojis injected -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- User Information Edit Form -->
-                    <form id="profile-edit-form" onsubmit="saveProfileInfo(event)" class="space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold mb-1">Nom et Prénom *</label>
-                                <input type="text" id="prof-fullname" required class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold mb-1">Numéro Téléphone (+242) *</label>
-                                <input type="text" id="prof-phone" disabled class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-800 p-2.5 text-slate-500 cursor-not-allowed">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold mb-1">Département de Résidence *</label>
-                                <select id="prof-dept" required class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                                    <!-- Options injected -->
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold mb-1">Genre (facultatif)</label>
-                                <select id="prof-gender" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                                    <option value="">Non spécifié</option>
-                                    <option value="H">Homme</option>
-                                    <option value="F">Femme</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold mb-1">Adresse Email (facultatif)</label>
-                            <input type="email" id="prof-email" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                        </div>
-
-                        <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow transition">
-                            <i class="fa-solid fa-floppy-disk mr-1"></i> Enregistrer les Modifications
-                        </button>
-                    </form>
-
-                    <!-- Security / Change Password Box -->
-                    <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-                        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3"><i class="fa-solid fa-key mr-1"></i> Sécurité & Mot de Passe</h3>
-                        <form onsubmit="handleChangePassword(event)" class="space-y-3">
-                            <input type="password" id="pwd-old" required placeholder="Mot de passe actuel" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                            <input type="password" id="pwd-new" required placeholder="Nouveau mot de passe" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                            <button type="submit" class="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl hover:bg-slate-900 transition">
-                                Mettre à jour le Mot de passe
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 5: PARAMÈTRES & À PROPOS -->
-            <section id="tab-settings" class="tab-content hidden max-w-3xl mx-auto space-y-6">
-                <!-- App Language & Preferences -->
-                <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl">
-                    <h2 class="text-lg font-black mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-emerald-600"></i> Paramètres Général
-                    </h2>
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold mb-2">Langue de l'application</label>
-                            <div class="grid grid-cols-3 gap-3">
-                                <button onclick="setAppLanguage('fr')" class="lang-btn border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-2xl text-center font-bold text-xs" data-lang="fr">
-                                    🇫🇷 Français
-                                </button>
-                                <button onclick="setAppLanguage('ln')" class="lang-btn border-2 border-slate-200 dark:border-slate-700 p-3 rounded-2xl text-center font-bold text-xs" data-lang="ln">
-                                    🇨🇬 Lingala
-                                </button>
-                                <button onclick="setAppLanguage('en')" class="lang-btn border-2 border-slate-200 dark:border-slate-700 p-3 rounded-2xl text-center font-bold text-xs" data-lang="en">
-                                    🇬🇧 English
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SECTION ABOUT (À PROPOS DE L'APPLICATION) -->
-                <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-black shadow-md">
-                                ⚡
-                            </div>
-                            <div>
-                                <h3 class="text-base font-black" id="about-app-name">Wapi Courant 242</h3>
-                                <p class="text-xs text-slate-500" id="about-app-version">Version 2.4.2 Pro Live</p>
-                            </div>
-                        </div>
-                        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">Officiel 🇨🇬</span>
-                    </div>
-
-                    <!-- Multilingual Description Container -->
-                    <div id="about-content-box" class="space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                        <!-- Content dynamically injected according to selected language -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 6: HELP & FAQ -->
-            <section id="tab-help" class="tab-content hidden max-w-3xl mx-auto space-y-6">
-                <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl">
-                    <h2 class="text-xl font-black mb-4"><i class="fa-solid fa-circle-question text-emerald-600 mr-2"></i> Centre d'Aide & FAQ</h2>
-                    <div class="space-y-3">
-                        <details class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl cursor-pointer">
-                            <summary class="font-bold text-sm">1. Comment créer un compte et se connecter ?</summary>
-                            <p class="text-xs text-slate-500 dark:text-slate-300 mt-2">Cliquez sur 'Connexion', saisissez votre prénom, nom, téléphone (+242), votre département et un mot de passe sécurisé. La validation se fait instantanément.</p>
-                        </details>
-                        <details class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl cursor-pointer">
-                            <summary class="font-bold text-sm">2. Comment signaler une coupure en direct ?</summary>
-                            <p class="text-xs text-slate-500 dark:text-slate-300 mt-2">Allez sur l'onglet Carte, sélectionnez le statut (Coupure, Instable, Rétabli), indiquez votre département et votre quartier, puis validez.</p>
-                        </details>
-                    </div>
-                </div>
-            </section>
+                <!-- BOUTON POSITION GPS EXACTE -->
+                <button onclick="getUserGPSLocation()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 border-2 border-white transition transform active:scale-95">
+                    <i class="fa-solid fa-crosshairs text-lg"></i>
+                    <span>Ma position GPS</span>
+                </button>
+            </div>
         </main>
-
-        <!-- FOOTER -->
-        <footer class="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 text-center text-xs text-slate-500">
-            <p>Wapi Courant 242 - Observatoire Citoyen de l'Électricité en République du Congo ⚡ (15 Départements)</p>
-        </footer>
     </div>
 
-    <!-- AUTHENTICATION MODAL (LOGIN / REGISTER / FORGOT) -->
-    <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transform transition-all">
-            <!-- Modal Header -->
-            <div class="p-6 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h3 id="auth-modal-title" class="text-lg font-black text-slate-900 dark:text-slate-100">Connexion Sécurisée</h3>
-                <button onclick="closeAuthModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+    <!-- MODAL AUTHENTIFICATION SÉCURISÉE (OTP + EMAIL + PSEUDO) -->
+    <div id="auth-modal-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-center relative overflow-hidden">
+            
+            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 font-bold shadow-inner">
+                ⚡
             </div>
 
-            <!-- Modal Content Forms -->
-            <div class="p-6">
-                <!-- LOGIN FORM -->
-                <form id="form-login" onsubmit="handleLoginSubmit(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Numéro de Téléphone (+242) *</label>
-                        <input type="tel" id="login-phone" required placeholder="06 123 45 67" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-3">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Mot de Passe *</label>
-                        <div class="relative">
-                            <input type="password" id="login-password" required placeholder="••••••••" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-3 pr-10">
-                            <button type="button" onclick="togglePasswordVisibility('login-password')" class="absolute right-3 top-3 text-slate-400"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                    </div>
+            <h2 class="text-2xl font-black text-slate-800">Wapi Courant 242</h2>
+            <p id="auth-subtitle-text" class="text-slate-500 text-sm mt-1 mb-6">Authentifiez-vous pour accéder à la carte et participer aux signalements communautaires.</p>
 
-                    <div class="flex justify-between items-center text-xs">
-                        <button type="button" onclick="switchAuthView('forgot')" class="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">Mot de passe oublié ?</button>
-                    </div>
+            <!-- ÉTAPE 1 : IDENTIFIANTS (PSEUDO + EMAIL) -->
+            <form id="auth-form-step1" onsubmit="handleRequestOTP(event)" class="space-y-4">
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-600 uppercase mb-1">Votre Pseudonyme :</label>
+                    <input type="text" id="input-pseudo" placeholder="Ex: Citoyen_Brazza" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-600 uppercase mb-1">Adresse Email :</label>
+                    <input type="email" id="input-email" placeholder="nom@exemple.cg" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-base">
+                    Obtenir le code de sécurité
+                </button>
+            </form>
 
-                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow transition">
-                        Se Connecter 🚀
-                    </button>
+            <!-- ÉTAPE 2 : CODE OTP (CACHÉ INITIALEMENT) -->
+            <form id="auth-form-step2" onsubmit="handleVerifyOTP(event)" class="space-y-4 hidden">
+                <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-xl border border-blue-200">
+                    Un code de vérification sécurisé a été généré pour <strong id="display-target-email"></strong>.
+                </div>
+                <div>
+                    <label class="block text-left text-xs font-bold text-slate-600 uppercase mb-1">Code à 6 chiffres :</label>
+                    <input type="text" id="input-otp-code" placeholder="000000" maxlength="6" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-center text-2xl font-mono tracking-widest font-extrabold text-blue-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-base">
+                    Valider et accéder à la carte
+                </button>
+                <button type="button" onclick="resetAuthStep()" class="text-xs text-slate-400 hover:text-slate-600 underline block mx-auto">
+                    Changer les informations
+                </button>
+            </form>
 
-                    <p class="text-center text-xs text-slate-500 pt-2">
-                        Pas encore de compte ? <button type="button" onclick="switchAuthView('register')" class="text-emerald-600 font-bold hover:underline">S'inscrire ici</button>
-                    </p>
-                </form>
-
-                <!-- REGISTER FORM -->
-                <form id="form-register" onsubmit="handleRegisterSubmit(event)" class="hidden space-y-3 max-h-[480px] overflow-y-auto custom-scrollbar pr-1">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-bold mb-1">Prénom *</label>
-                            <input type="text" id="reg-firstname" required class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold mb-1">Nom *</label>
-                            <input type="text" id="reg-lastname" required class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Numéro Téléphone (+242) *</label>
-                        <input type="tel" id="reg-phone" required placeholder="06XXXXXXX" class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Département de résidence (15) *</label>
-                        <select id="reg-dept" required class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5">
-                            <!-- Options injected dynamically -->
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Mot de Passe *</label>
-                        <div class="relative">
-                            <input type="password" id="reg-password" onkeyup="checkPasswordStrength(this.value)" required placeholder="Min. 6 car, 1 Majuscule, 1 Chiffre" class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5 pr-10">
-                            <button type="button" onclick="togglePasswordVisibility('reg-password')" class="absolute right-3 top-2.5 text-slate-400"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                        <!-- Strength Meter Bar -->
-                        <div class="w-full bg-slate-200 h-1 rounded-full mt-1 overflow-hidden">
-                            <div id="password-strength-bar" class="h-full bg-red-500 w-0 transition-all"></div>
-                        </div>
-                        <p id="password-strength-text" class="text-[10px] text-slate-400 mt-0.5">Faible</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Confirmer le Mot de Passe *</label>
-                        <div class="relative">
-                            <input type="password" id="reg-password-confirm" required placeholder="Répéter mot de passe" class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2.5 pr-10">
-                            <button type="button" onclick="togglePasswordVisibility('reg-password-confirm')" class="absolute right-3 top-2.5 text-slate-400"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition">
-                        Créer mon Compte Citoyen 🇨🇬
-                    </button>
-
-                    <p class="text-center text-xs text-slate-500 pt-1">
-                        Déjà inscrit ? <button type="button" onclick="switchAuthView('login')" class="text-emerald-600 font-bold hover:underline">Se connecter</button>
-                    </p>
-                </form>
-
-                <!-- FORGOT PASSWORD FORM -->
-                <form id="form-forgot" onsubmit="handleForgotSubmit(event)" class="hidden space-y-4">
-                    <p class="text-xs text-slate-500">Saisissez votre numéro de téléphone pour recevoir un code OTP de réinitialisation.</p>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Numéro Téléphone (+242)</label>
-                        <input type="tel" id="forgot-phone" required placeholder="06XXXXXXX" class="w-full text-sm rounded-xl border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-3">
-                    </div>
-                    <button type="submit" class="w-full py-3 bg-yellow-500 text-slate-900 font-extrabold rounded-xl shadow hover:bg-yellow-600 transition">
-                        Envoyer Code OTP 📲
-                    </button>
-                    <p class="text-center text-xs"><button type="button" onclick="switchAuthView('login')" class="text-slate-400 underline">Retour connexion</button></p>
-                </form>
-            </div>
         </div>
     </div>
 
-    <!-- JAVASCRIPT APPLICATION CORE -->
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <script>
-        /* ==========================================================================
-           1. APP CONSTANTS & DEPARTMENTS OF REPUBLIC OF THE CONGO (15)
-           ========================================================================== */
-        const CONGO_DEPARTMENTS = [
-            { id: "Brazzaville", name: "Brazzaville", lat: -4.2634, lng: 15.2832 },
-            { id: "Pointe-Noire", name: "Pointe-Noire", lat: -4.7761, lng: 11.8635 },
-            { id: "Bouenza", name: "Bouenza (Madingou)", lat: -4.1531, lng: 13.5500 },
-            { id: "Congo-Oubangui", name: "Congo-Oubangui", lat: -1.0000, lng: 16.5000 },
-            { id: "Cuvette", name: "Cuvette (Owando)", lat: -0.4819, lng: 15.8999 },
-            { id: "Cuvette-Ouest", name: "Cuvette-Ouest (Ewo)", lat: -0.8756, lng: 14.8206 },
-            { id: "Djoue-Lefini", name: "Djoué-Léfini", lat: -3.2000, lng: 15.5000 },
-            { id: "Kouilou", name: "Kouilou (Loango)", lat: -4.6461, lng: 11.9122 },
-            { id: "Lekoumou", name: "Lékoumou (Sibiti)", lat: -3.6819, lng: 13.3497 },
-            { id: "Likouala", name: "Likouala (Impfondo)", lat: 1.6239, lng: 18.0603 },
-            { id: "Niari", name: "Niari (Dolisie)", lat: -4.1972, lng: 12.6711 },
-            { id: "Nkeni-Alima", name: "Nkéni-Alima", lat: -1.5000, lng: 15.8000 },
-            { id: "Plateaux", name: "Plateaux (Djambala)", lat: -2.5439, lng: 14.7533 },
-            { id: "Pool", name: "Pool (Kinkala)", lat: -4.3614, lng: 14.7644 },
-            { id: "Sangha", name: "Sangha (Ouesso)", lat: 1.6136, lng: 16.0517 }
-        ];
+        /* --- 1. CONFIGURATION & DONNÉES GLOBALES --- */
+        let simOTPCode = "";
+        let map, userGPSMarker;
 
-        const EMOJI_LIBRARY = ['⚡', '🦁', '🇨🇬', '👷‍♂️', '👨‍💼', '👩‍🔬', '👑', '🛠️', '💡', '🌍', '🔥', '🛡️'];
-
-        /* ==========================================================================
-           2. STATE MANAGEMENT & LOCAL STORAGE
-           ========================================================================== */
-        let state = {
-            currentUser: null,
-            language: localStorage.getItem('wapi_lang') || 'fr',
-            reports: JSON.parse(localStorage.getItem('wapi_reports')) || [],
-            chatMessages: JSON.parse(localStorage.getItem('wapi_chats')) || [],
-            pollVotes: JSON.parse(localStorage.getItem('wapi_poll')) || { yes: 12, no: 45 },
-            activeAgoraRoom: 'Général',
-            loginAttempts: 0,
-            isLocked: false
+        // Stockage des messages par salon
+        const salonsStore = {
+            general: [
+                { user: "Admin 242", text: "Bienvenue sur le réseau d'information national Wapi Courant !", time: "10:00" },
+                { user: "Paul_BZV", text: "Coupure signalée du côté de Bacongo depuis 30 minutes.", time: "10:15" }
+            ],
+            brazzaville: [
+                { user: "Moungali_Citoyen", text: "Est-ce qu'il y a du courant vers la rue de la Paix ?", time: "09:45" }
+            ],
+            "pointe-noire": [
+                { user: "Loandjili_Pro", text: "Réseau stable actuellement sur le port.", time: "11:05" }
+            ]
         };
 
-        let map = null;
-        let mapMarkers = [];
-
-        /* ==========================================================================
-           3. INITIALIZATION ON WINDOW LOAD
-           ========================================================================== */
-        window.onload = function() {
-            initDepartmentsDropdowns();
+        /* --- 2. AUTHENTIFICATION & CODE OTP --- */
+        window.addEventListener('DOMContentLoaded', () => {
+            checkUserAuthStatus();
             initLeafletMap();
-            loadSampleDataIfEmpty();
-            checkAuthSession();
-            renderReportsFeed();
-            renderAgoraRooms();
-            renderEmojiPicker();
-            updateAppLanguageUI();
-            updateCounters();
-        };
+        });
 
-        /* ==========================================================================
-           4. SECURITY & CRYPTOGRAPHY (SHA-256 Web Crypto API)
-           ========================================================================== */
-        async function hashPassword(password) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        function checkPasswordStrength(val) {
-            let score = 0;
-            if (val.length >= 6) score++;
-            if (/[A-Z]/.test(val)) score++;
-            if (/[0-9]/.test(val)) score++;
+        function checkUserAuthStatus() {
+            const isVerified = localStorage.getItem('wapi_auth_verified');
+            const savedPseudo = localStorage.getItem('wapi_user_pseudo');
             
-            const bar = document.getElementById('password-strength-bar');
-            const text = document.getElementById('password-strength-text');
+            if (isVerified === 'true' && savedPseudo) {
+                document.getElementById('auth-modal-overlay').classList.add('hidden');
+                document.getElementById('badge-username').textContent = savedPseudo;
+            } else {
+                document.getElementById('auth-modal-overlay').classList.remove('hidden');
+            }
+        }
+
+        function handleRequestOTP(e) {
+            e.preventDefault();
+            const pseudo = document.getElementById('input-pseudo').value.trim();
+            const email = document.getElementById('input-email').value.trim();
+
+            if (pseudo.length < 2) return alert("Veuillez saisir un pseudo valide.");
+
+            // Génération OTP Simulé
+            simOTPCode = Math.floor(100000 + Math.random() * 900000).toString();
+            console.log(`[AUTH SÉCURISÉE] Code OTP envoyé à ${email} : ${simOTPCode}`);
             
-            if (score === 1) { bar.style.width = '33%'; bar.className = 'h-full bg-red-500'; text.innerText = 'Faible'; }
-            else if (score === 2) { bar.style.width = '66%'; bar.className = 'h-full bg-yellow-500'; text.innerText = 'Moyen'; }
-            else if (score === 3) { bar.style.width = '100%'; bar.className = 'h-full bg-emerald-500'; text.innerText = 'Robuste'; }
+            alert(`⚡ SECURITY ALERT WAPI COURANT:\nVotre code de vérification à 6 chiffres est : ${simOTPCode}`);
+
+            document.getElementById('display-target-email').textContent = email;
+            document.getElementById('auth-form-step1').classList.add('hidden');
+            document.getElementById('auth-form-step2').classList.remove('hidden');
         }
 
-        function togglePasswordVisibility(fieldId) {
-            const input = document.getElementById(fieldId);
-            if (input.type === 'password') input.type = 'text';
-            else input.type = 'password';
-        }
-
-        /* ==========================================================================
-           5. AUTHENTICATION WORKFLOWS (LOGIN / REGISTER / SESSION)
-           ========================================================================== */
-        function checkAuthSession() {
-            const sessionData = localStorage.getItem('wapi_session');
-            if (sessionData) {
-                state.currentUser = JSON.parse(sessionData);
-                updateUserUI();
-            } else {
-                updateUserUI();
-            }
-        }
-
-        async function handleRegisterSubmit(e) {
+        function handleVerifyOTP(e) {
             e.preventDefault();
-            const pwd = document.getElementById('reg-password').value;
-            const pwdConf = document.getElementById('reg-password-confirm').value;
+            const enteredOTP = document.getElementById('input-otp-code').value.trim();
+            const pseudo = document.getElementById('input-pseudo').value.trim();
+            const email = document.getElementById('input-email').value.trim();
 
-            if (pwd !== pwdConf) {
-                showToast("Les mots de passe ne correspondent pas !", "error");
-                return;
-            }
+            if (enteredOTP === simOTPCode) {
+                localStorage.setItem('wapi_auth_verified', 'true');
+                localStorage.setItem('wapi_user_pseudo', pseudo);
+                localStorage.setItem('wapi_user_email', email);
 
-            if (pwd.length < 6) {
-                showToast("Le mot de passe doit contenir au moins 6 caractères.", "error");
-                return;
-            }
-
-            const phone = document.getElementById('reg-phone').value.trim();
-            const users = JSON.parse(localStorage.getItem('wapi_users')) || [];
-
-            if (users.some(u => u.phone === phone)) {
-                showToast("Ce numéro de téléphone est déjà inscrit.", "error");
-                return;
-            }
-
-            const hashedPwd = await hashPassword(pwd);
-
-            const newUser = {
-                id: 'usr_' + Date.now(),
-                firstname: document.getElementById('reg-firstname').value,
-                lastname: document.getElementById('reg-lastname').value,
-                phone: phone,
-                dept: document.getElementById('reg-dept').value,
-                passwordHash: hashedPwd,
-                avatarType: 'emoji',
-                avatarValue: '⚡'
-            };
-
-            users.push(newUser);
-            localStorage.setItem('wapi_users', JSON.stringify(users));
-
-            // Log user in automatically
-            state.currentUser = newUser;
-            localStorage.setItem('wapi_session', JSON.stringify(newUser));
-
-            closeAuthModal();
-            updateUserUI();
-            showToast("Compte créé avec succès ! Bienvenue.", "success");
-        }
-
-        async function handleLoginSubmit(e) {
-            e.preventDefault();
-
-            if (state.isLocked) {
-                showToast("Compte temporairement bloqué suite à trop d'échecs. Réessayez dans 30s.", "error");
-                return;
-            }
-
-            const phone = document.getElementById('login-phone').value.trim();
-            const pwd = document.getElementById('login-password').value;
-            const hashedPwd = await hashPassword(pwd);
-
-            const users = JSON.parse(localStorage.getItem('wapi_users')) || [];
-            const foundUser = users.find(u => u.phone === phone && u.passwordHash === hashedPwd);
-
-            if (foundUser) {
-                state.currentUser = foundUser;
-                state.loginAttempts = 0;
-                localStorage.setItem('wapi_session', JSON.stringify(foundUser));
-                closeAuthModal();
-                updateUserUI();
-                showToast("Connexion réussie ! Bon retour.", "success");
+                document.getElementById('auth-modal-overlay').classList.add('hidden');
+                document.getElementById('badge-username').textContent = pseudo;
             } else {
-                state.loginAttempts++;
-                if (state.loginAttempts >= 3) {
-                    state.isLocked = true;
-                    showToast("3 échecs consécutifs. Verrouillage de sécurité 30 secondes.", "error");
-                    setTimeout(() => { state.isLocked = false; state.loginAttempts = 0; }, 30000);
-                } else {
-                    showToast(`Identifiants incorrects. Tentative ${state.loginAttempts}/3`, "error");
-                }
+                alert("Code de vérification incorrect. Veuillez réessayer.");
             }
         }
 
-        function logout() {
-            state.currentUser = null;
-            localStorage.removeItem('wapi_session');
-            updateUserUI();
-            showToast("Vous avez été déconnecté.", "info");
+        function resetAuthStep() {
+            document.getElementById('auth-form-step2').classList.add('hidden');
+            document.getElementById('auth-form-step1').classList.remove('hidden');
         }
 
-        function handleForgotSubmit(e) {
-            e.preventDefault();
-            showToast("SMS OTP envoyé au numéro. Code de simulation : 2420", "info");
-            setTimeout(() => {
-                const code = prompt("Entrez le code OTP à 4 chiffres reçu (2420) :");
-                if (code === "2420") {
-                    showToast("Code valide ! Réinitialisation autorisée.", "success");
-                    switchAuthView('login');
-                } else {
-                    showToast("Code OTP invalide.", "error");
-                }
-            }, 1000);
-        }
-
-        function updateUserUI() {
-            const userWidget = document.getElementById('user-widget');
-            const authWidget = document.getElementById('auth-widget');
-            
-            if (state.currentUser) {
-                userWidget.classList.remove('hidden');
-                authWidget.classList.add('hidden');
-                
-                document.getElementById('nav-username').innerText = state.currentUser.firstname;
-                renderAvatarDisplay('nav-avatar', state.currentUser);
-                
-                // Populate profile form
-                document.getElementById('prof-fullname').value = `${state.currentUser.firstname} ${state.currentUser.lastname}`;
-                document.getElementById('prof-phone').value = state.currentUser.phone;
-                document.getElementById('prof-dept').value = state.currentUser.dept;
-                renderAvatarDisplay('profile-avatar-display', state.currentUser);
-            } else {
-                userWidget.classList.add('hidden');
-                authWidget.classList.remove('hidden');
-            }
-        }
-
-        /* ==========================================================================
-           6. PROFILE AVATAR PERSONALIZATION (PHOTO & EMOJI)
-           ========================================================================== */
-        function renderAvatarDisplay(elementId, user) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
-
-            if (user.avatarType === 'image' && user.avatarValue) {
-                el.innerHTML = `<img src="${user.avatarValue}" class="w-full h-full object-cover">`;
-            } else if (user.avatarType === 'emoji' && user.avatarValue) {
-                el.innerHTML = `<span class="text-xl">${user.avatarValue}</span>`;
-            } else {
-                const init = (user.firstname?.[0] || 'C') + (user.lastname?.[0] || '2');
-                el.innerText = init.toUpperCase();
-            }
-        }
-
-        function renderEmojiPicker() {
-            const container = document.getElementById('emoji-picker-container');
-            container.innerHTML = EMOJI_LIBRARY.map(e => `
-                <button type="button" onclick="selectEmojiAvatar('${e}')" class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-lg transition">
-                    ${e}
-                </button>
-            `).join('');
-        }
-
-        function selectEmojiAvatar(emoji) {
-            if (!state.currentUser) return;
-            state.currentUser.avatarType = 'emoji';
-            state.currentUser.avatarValue = emoji;
-            saveUserToStorage();
-            updateUserUI();
-            showToast("Avatar emoji mis à jour !", "success");
-        }
-
-        function handlePhotoUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            // Compress & Resize via HTML5 Canvas for Mobile Bandwidth Efficiency
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 200;
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH;
-                    canvas.height = img.height * scaleSize;
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-                    
-                    state.currentUser.avatarType = 'image';
-                    state.currentUser.avatarValue = compressedBase64;
-                    saveUserToStorage();
-                    updateUserUI();
-                    showToast("Photo de profil enregistrée & optimisée !", "success");
-                };
-                img.src = evt.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function removeAvatarPhoto() {
-            if (!state.currentUser) return;
-            state.currentUser.avatarType = 'emoji';
-            state.currentUser.avatarValue = '⚡';
-            saveUserToStorage();
-            updateUserUI();
-            showToast("Photo supprimée, avatar par défaut réinitialisé.", "info");
-        }
-
-        function saveUserToStorage() {
-            localStorage.setItem('wapi_session', JSON.stringify(state.currentUser));
-            const users = JSON.parse(localStorage.getItem('wapi_users')) || [];
-            const idx = users.findIndex(u => u.phone === state.currentUser.phone);
-            if (idx !== -1) {
-                users[idx] = state.currentUser;
-                localStorage.setItem('wapi_users', JSON.stringify(users));
-            }
-        }
-
-        /* ==========================================================================
-           7. LEAFLET MAP & CITIZEN REPORTS
-           ========================================================================== */
+        /* --- 3. CARTE INTERACTIVE LEAFLET & GÉOLOCALISATION GPS --- */
         function initLeafletMap() {
-            // Center map on Republic of the Congo
-            map = L.map('map-container').setView([-1.5, 15.5], 6);
+            // Centrage par défaut sur le Congo (Brazzaville)
+            map = L.map('map', { zoomControl: false }).setView([-4.2634, 15.2429], 13);
+            L.control.zoom({ position: 'topright' }).addTo(map);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
+                maxZoom: 19,
+                attribution: '© OpenStreetMap | Wapi Courant 242'
             }).addTo(map);
 
-            renderMapMarkers();
+            // Marqueurs de simulation initiaux
+            addSimulatedReports();
         }
 
-        function renderMapMarkers(deptFilter = "ALL") {
-            // Clear existing markers
-            mapMarkers.forEach(m => map.removeLayer(m));
-            mapMarkers = [];
-
-            state.reports.forEach(rep => {
-                if (deptFilter !== "ALL" && rep.dept !== deptFilter) return;
-
-                const deptObj = CONGO_DEPARTMENTS.find(d => d.id === rep.dept) || CONGO_DEPARTMENTS[0];
-                
-                let markerColor = "#DC241F"; // red
-                if (rep.status === "unstable") markerColor = "#FBDE07"; // yellow
-                if (rep.status === "restored") markerColor = "#009543"; // green
-
-                const customMarker = L.circleMarker([deptObj.lat + (Math.random() * 0.05 - 0.025), deptObj.lng + (Math.random() * 0.05 - 0.025)], {
-                    radius: 9,
-                    fillColor: markerColor,
-                    color: "#ffffff",
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.9
-                }).addTo(map);
-
-                customMarker.bindPopup(`
-                    <div class="p-2 font-sans">
-                        <strong class="text-sm block">${rep.quarter} (${rep.dept})</strong>
-                        <span class="text-xs font-bold uppercase ${rep.status === 'outage' ? 'text-red-600' : rep.status === 'unstable' ? 'text-yellow-600' : 'text-emerald-600'}">
-                            ${rep.status === 'outage' ? '🚨 Coupure' : rep.status === 'unstable' ? '⚠️ Instable' : '✅ Rétabli'}
-                        </span>
-                        <p class="text-xs text-slate-500 mt-1">${rep.details || 'Pas de détails'}</p>
-                        <span class="text-[10px] text-slate-400 block mt-1">${rep.time}</span>
-                    </div>
-                `);
-
-                mapMarkers.push(customMarker);
-            });
-        }
-
-        function handleReportSubmit(e) {
-            e.preventDefault();
-            if (!state.currentUser) {
-                openAuthModal('login');
-                showToast("Veuillez vous connecter pour publier un signalement.", "info");
-                return;
+        function getUserGPSLocation() {
+            if (!navigator.geolocation) {
+                return alert("La géolocalisation n'est pas supportée par votre navigateur.");
             }
 
-            const status = document.querySelector('input[name="report-status"]:checked').value;
-            const dept = document.getElementById('report-dept').value;
-            const quarter = document.getElementById('report-quarter').value;
-            const details = document.getElementById('report-details').value;
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
 
-            const newReport = {
-                id: 'rep_' + Date.now(),
-                status: status,
-                dept: dept,
-                quarter: quarter,
-                details: details,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                user: state.currentUser.firstname
-            };
+                    map.setView([lat, lng], 16);
 
-            state.reports.unshift(newReport);
-            localStorage.setItem('wapi_reports', JSON.stringify(state.reports));
-
-            renderMapMarkers();
-            renderReportsFeed();
-            updateCounters();
-            document.getElementById('report-form').reset();
-            showToast("Signalement diffusé sur l'observatoire !", "success");
+                    if (userGPSMarker) {
+                        userGPSMarker.setLatLng([lat, lng]);
+                    } else {
+                        userGPSMarker = L.marker([lat, lng], {
+                            title: "Votre position"
+                        }).addTo(map)
+                        .bindPopup("<b>📍 Votre position GPS exacte</b><br>Signalement prêt.")
+                        .openPopup();
+                    }
+                },
+                (err) => alert("Impossible d'obtenir la position GPS : " + err.message),
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
         }
 
-        function renderReportsFeed() {
-            const container = document.getElementById('reports-feed-container');
-            if (state.reports.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Aucun signalement enregistré.</p>`;
-                return;
-            }
-
-            container.innerHTML = state.reports.map(r => `
-                <div class="p-3 bg-slate-50 dark:bg-slate-700/40 rounded-2xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-3 h-3 rounded-full ${r.status === 'outage' ? 'bg-red-500' : r.status === 'unstable' ? 'bg-yellow-500' : 'bg-emerald-500'}"></div>
-                        <div>
-                            <p class="text-xs font-bold">${r.quarter} <span class="text-slate-400">(${r.dept})</span></p>
-                            <p class="text-[11px] text-slate-500">${r.details || 'Signalement citoyen'}</p>
-                        </div>
-                    </div>
-                    <span class="text-[10px] text-slate-400 font-semibold">${r.time}</span>
-                </div>
-            `).join('');
-        }
-
-        function updateCounters() {
-            document.getElementById('cnt-outages').innerText = state.reports.filter(r => r.status === 'outage').length;
-            document.getElementById('cnt-unstable').innerText = state.reports.filter(r => r.status === 'unstable').length;
-            document.getElementById('cnt-restored').innerText = state.reports.filter(r => r.status === 'restored').length;
-        }
-
-        /* ==========================================================================
-           8. AGORA 242 (CHAT ROOMS & VOICE MESSAGES)
-           ========================================================================== */
-        function renderAgoraRooms() {
-            const container = document.getElementById('agora-dept-rooms');
-            container.innerHTML = CONGO_DEPARTMENTS.map(d => `
-                <button onclick="selectAgoraRoom('${d.id}')" class="agora-room-btn w-full text-left px-3 py-2 rounded-xl font-medium text-xs flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-800" data-room="${d.id}">
-                    <span>📍 ${d.name}</span>
-                </button>
-            `).join('');
-        }
-
-        function selectAgoraRoom(roomName) {
-            state.activeAgoraRoom = roomName;
-            document.getElementById('current-room-title').innerText = `Salon : ${roomName}`;
+        function triggerReportCurrentLocation() {
+            const pseudo = localStorage.getItem('wapi_user_pseudo') || "Citoyen";
             
-            // Highlight active button
-            document.querySelectorAll('.agora-room-btn').forEach(btn => {
-                if (btn.dataset.room === roomName) {
-                    btn.className = "agora-room-btn w-full text-left px-3 py-2.5 rounded-xl font-bold text-xs flex items-center justify-between bg-emerald-600 text-white";
-                } else {
-                    btn.className = "agora-room-btn w-full text-left px-3 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-800";
-                }
-            });
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
 
-            renderChatMessages();
-        }
+                    L.circle([lat, lng], { color: 'red', fillColor: '#f03', fillOpacity: 0.5, radius: 200 }).addTo(map);
+                    
+                    L.marker([lat, lng]).addTo(map)
+                        .bindPopup(`<b>⚡ Coupure Signalée !</b><br>Par : ${pseudo}<br>Heure : ${new Date().toLocaleTimeString()}`)
+                        .openPopup();
 
-        function sendChatMessage(customText = null, isVoice = false) {
-            if (!state.currentUser) {
-                openAuthModal('login');
-                showToast("Connectez-vous pour participer à l'Agora.", "info");
-                return;
-            }
-
-            const input = document.getElementById('chat-input');
-            const text = customText || input.value.trim();
-            if (!text && !isVoice) return;
-
-            const msg = {
-                id: 'chat_' + Date.now(),
-                room: state.activeAgoraRoom,
-                user: state.currentUser,
-                text: text,
-                isVoice: isVoice,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-
-            state.chatMessages.push(msg);
-            localStorage.setItem('wapi_chats', JSON.stringify(state.chatMessages));
-
-            if (!customText) input.value = '';
-            renderChatMessages();
-        }
-
-        function renderChatMessages() {
-            const container = document.getElementById('chat-messages');
-            const filtered = state.chatMessages.filter(m => m.room === state.activeAgoraRoom);
-
-            if (filtered.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Aucun message dans ce salon. Soyez le premier !</p>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(m => {
-                const isMe = state.currentUser && state.currentUser.phone === m.user.phone;
-                return `
-                    <div class="flex gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
-                        <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold overflow-hidden shadow flex-shrink-0">
-                            ${m.user.avatarType === 'image' ? `<img src="${m.user.avatarValue}" class="w-full h-full object-cover">` : m.user.avatarValue || 'C'}
-                        </div>
-                        <div class="max-w-[75%]">
-                            <span class="text-[10px] font-bold text-slate-400 block mb-0.5 ${isMe ? 'text-right' : ''}">${m.user.firstname} • ${m.time}</span>
-                            <div class="p-3 rounded-2xl text-xs leading-relaxed ${isMe ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-100 dark:bg-slate-700 rounded-tl-none'}">
-                                ${m.isVoice ? `🎙️ <em>Message Vocal (Simulé Web Audio)</em>` : m.text}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function toggleVoiceRecording() {
-            const btn = document.getElementById('mic-btn');
-            btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
-            showToast("Enregistrement vocal 3s en cours...", "info");
-            setTimeout(() => {
-                btn.classList.remove('bg-red-500', 'text-white', 'animate-pulse');
-                sendChatMessage("Note Vocale", true);
-            }, 3000);
-        }
-
-        /* ==========================================================================
-           9. WAPI AI ASSISTANT
-           ========================================================================== */
-        function sendAIPrompt() {
-            const input = document.getElementById('ai-input');
-            const query = input.value.trim();
-            if (!query) return;
-
-            appendAIMessage('user', query);
-            input.value = '';
-
-            // Simulate AI Thinking
-            const thinkingId = appendAIMessage('ai', 'L\'assistant réfléchit...');
-
-            setTimeout(() => {
-                const aiBox = document.getElementById('ai-chat-box');
-                const replyText = generateAIResponse(query);
-                document.getElementById(thinkingId).innerHTML = replyText;
-                aiBox.scrollTop = aiBox.scrollHeight;
-            }, 1200);
-        }
-
-        function askAIQuick(text) {
-            document.getElementById('ai-input').value = text;
-            sendAIPrompt();
-        }
-
-        function appendAIMessage(role, text) {
-            const container = document.getElementById('ai-chat-box');
-            const msgId = 'aimsg_' + Date.now();
-
-            const html = role === 'user' ? `
-                <div class="flex justify-end gap-2">
-                    <div class="bg-emerald-600 text-white p-3.5 rounded-2xl rounded-tr-none max-w-[85%] text-xs">
-                        ${text}
-                    </div>
-                </div>
-            ` : `
-                <div class="flex gap-3">
-                    <div class="w-8 h-8 rounded-full bg-yellow-500 text-slate-900 font-bold flex items-center justify-center text-xs flex-shrink-0">W</div>
-                    <div id="${msgId}" class="bg-slate-100 dark:bg-slate-700 p-3.5 rounded-2xl rounded-tl-none max-w-[85%] text-xs leading-relaxed">
-                        ${text}
-                    </div>
-                </div>
-            `;
-
-            container.insertAdjacentHTML('beforeend', html);
-            container.scrollTop = container.scrollHeight;
-            return msgId;
-        }
-
-        function generateAIResponse(q) {
-            const lower = q.toLowerCase();
-            if (lower.includes('délestage') || lower.includes('coupure')) {
-                return "Les coupures d'électricité au Congo proviennent généralement de limitations de distribution, d'entretiens du réseau E2C ou de variations de production hydroélectrique sur le barrage d'Imboulou et de Moukoukoulou.";
-            } else if (lower.includes('protéger') || lower.includes('frigo')) {
-                return "💡 <strong>Conseil Wapi :</strong> Utilisez des régulateurs de tension automatiques (AVR) ou des multiprises parasurtenseurs. Attendez toujours 3 minutes après le rétablissement du courant avant de rebrancher vos gros appareils.";
-            } else if (lower.includes('solaire') || lower.includes('panneau')) {
-                return "☀️ <strong>Option Solaire au Congo :</strong> Un kit basique (300W avec batterie lithium) coûte environ 250 000 FCFA et permet d'alimenter vos ampoules, ventilateurs et de charger vos téléphones pendant les coupures.";
-            } else {
-                return "Je suis à votre service ! Vous pouvez me poser toute question technique, géographique ou relative au réseau électrique des 15 départements du Congo.";
-            }
-        }
-
-        function clearAIChat() {
-            document.getElementById('ai-chat-box').innerHTML = `
-                <div class="flex gap-3">
-                    <div class="w-8 h-8 rounded-full bg-yellow-500 text-slate-900 font-bold flex items-center justify-center text-xs flex-shrink-0">W</div>
-                    <div class="bg-slate-100 dark:bg-slate-700 p-3.5 rounded-2xl rounded-tl-none max-w-[85%] text-xs leading-relaxed">
-                        Chat réinitialisé ! Comment puis-je vous aider ?
-                    </div>
-                </div>
-            `;
-        }
-
-        /* ==========================================================================
-           10. MULTILINGUAL TRANSLATION (FR / LN / EN) & ABOUT SECTION
-           ========================================================================== */
-        const TRANSLATIONS = {
-            fr: {
-                appName: "Wapi Courant 242",
-                aboutDesc: "Wapi Courant 242 est une plateforme citoyenne collaborative conçue pour documenter et suivre en temps réel la disponibilité du réseau électrique à travers les 15 départements de la République du Congo.",
-                aboutFeat1: "🗺️ Carte interactive temps réel des 15 départements",
-                aboutFeat2: "🚨 Signalements instantanés des coupures et baisses de tension",
-                aboutFeat3: "💬 Agora 242 : Salons d'entraide communautaire et messages vocaux",
-                aboutFeat4: "🤖 Wapi IA : Assistant virtuel expert en sécurité électrique",
-                nav_map: "Carte & Direct",
-                nav_agora: "Agora 242",
-                nav_ai: "Assistant Wapi",
-                nav_help: "Aide & FAQ"
-            },
-            ln: {
-                appName: "Wapi Courant 242",
-                aboutDesc: "Wapi Courant 242 ezali esika ya basembosi mpe baponami mpo na kolanda basango ya kura na bituka nyonso 15 ya République du Congo na ntango ya solo.",
-                aboutFeat1: "🗺️ Karte ya live ya bituka 15 ya Congo",
-                aboutFeat2: "🚨 Kosakola kokata mpe koningana ya kura",
-                aboutFeat3: "💬 Agora 242 : Masolo mpe mongongo ya basambeli",
-                aboutFeat4: "🤖 Wapi IA : Mopesi toli ya bwanya ya kura",
-                nav_map: "Karte & Live",
-                nav_agora: "Agora 242",
-                nav_ai: "Mopesi Toli",
-                nav_help: "Lisungi"
-            },
-            en: {
-                appName: "Wapi Courant 242",
-                aboutDesc: "Wapi Courant 242 is a citizen observatory app dedicated to tracking electricity status and power outages across all 15 departments of the Republic of the Congo in real-time.",
-                aboutFeat1: "🗺️ Live interactive map covering 15 departments",
-                aboutFeat2: "🚨 Real-time citizen reports on power outages & instability",
-                aboutFeat3: "💬 Agora 242 : Community chat rooms with voice messaging",
-                aboutFeat4: "🤖 AI Wapi Assistant : Intelligent electrical guidance",
-                nav_map: "Map & Live",
-                nav_agora: "Agora 242",
-                nav_ai: "AI Assistant",
-                nav_help: "Help & FAQ"
-            }
-        };
-
-        function setAppLanguage(lang) {
-            state.language = lang;
-            localStorage.setItem('wapi_lang', lang);
-            updateAppLanguageUI();
-            showToast(`Langue changée : ${lang.toUpperCase()}`, "info");
-        }
-
-        function updateAppLanguageUI() {
-            const t = TRANSLATIONS[state.language] || TRANSLATIONS.fr;
-
-            // Highlight language button
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                if (btn.dataset.lang === state.language) {
-                    btn.className = "lang-btn border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-2xl text-center font-bold text-xs";
-                } else {
-                    btn.className = "lang-btn border-2 border-slate-200 dark:border-slate-700 p-3 rounded-2xl text-center font-bold text-xs";
-                }
-            });
-
-            // Update "About Application" Multilingual Card
-            const aboutBox = document.getElementById('about-content-box');
-            aboutBox.innerHTML = `
-                <p><strong>Description :</strong> ${t.aboutDesc}</p>
-                <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl space-y-2 text-xs">
-                    <p class="font-bold text-slate-800 dark:text-slate-200">Fonctionnalités Principales :</p>
-                    <p>${t.aboutFeat1}</p>
-                    <p>${t.aboutFeat2}</p>
-                    <p>${t.aboutFeat3}</p>
-                    <p>${t.aboutFeat4}</p>
-                </div>
-            `;
-        }
-
-        /* ==========================================================================
-           11. HELPERS, UI CONTROLS & UTILITIES
-           ========================================================================== */
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if (btn.dataset.tab === tabId) {
-                    btn.classList.add('text-emerald-600', 'dark:text-emerald-400');
-                } else {
-                    btn.classList.remove('text-emerald-600', 'dark:text-emerald-400');
-                }
-            });
-
-            if (tabId === 'map' && map) {
-                setTimeout(() => map.invalidateSize(), 200);
-            }
-        }
-
-        function initDepartmentsDropdowns() {
-            const selects = [document.getElementById('map-dept-filter'), document.getElementById('report-dept'), document.getElementById('reg-dept'), document.getElementById('prof-dept')];
-            
-            selects.forEach(sel => {
-                if (!sel) return;
-                const isFilter = sel.id === 'map-dept-filter';
-                let html = isFilter ? `<option value="ALL">🌐 Tous les 15 départements</option>` : '';
-                CONGO_DEPARTMENTS.forEach(d => {
-                    html += `<option value="${d.id}">${d.name}</option>`;
+                    map.setView([lat, lng], 15);
+                    alert("✅ Signalement de coupure enregistré à votre position exacte !");
+                }, () => {
+                    alert("Veuillez activer votre GPS pour effectuer un signalement précis.");
                 });
-                sel.innerHTML = html;
+            }
+        }
+
+        function addSimulatedReports() {
+            // Signalements fictifs à Brazzaville et Pointe-Noire
+            const points = [
+                { lat: -4.268, lng: 15.245, zone: "Poto-Poto (Brazzaville)", status: "Coupure en cours" },
+                { lat: -4.280, lng: 15.230, zone: "Bacongo (Brazzaville)", status: "Courant Rétabli" },
+                { lat: -4.795, lng: 11.850, zone: "Grand Marché (Pointe-Noire)", status: "Coupure en cours" }
+            ];
+
+            points.forEach(pt => {
+                const isOff = pt.status.includes('Coupure');
+                L.circleMarker([pt.lat, pt.lng], {
+                    color: isOff ? '#dc2626' : '#16a34a',
+                    radius: 9,
+                    fillOpacity: 0.8
+                }).addTo(map)
+                .bindPopup(`<b>${pt.zone}</b><br>Statut : ${pt.status}`);
             });
         }
 
-        function filterMapByDept() {
-            const val = document.getElementById('map-dept-filter').value;
-            renderMapMarkers(val);
+        /* --- 4. GESTION DU CHAT & DES SALONS --- */
+        function onSalonChange(salonId) {
+            renderChatMessages(salonId);
         }
 
-        function resetMapView() {
-            document.getElementById('map-dept-filter').value = "ALL";
-            map.setView([-1.5, 15.5], 6);
-            renderMapMarkers("ALL");
-        }
-
-        function toggleTheme() {
-            document.documentElement.classList.toggle('dark');
-        }
-
-        function toggleMobileMenu() {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
-        }
-
-        function openAuthModal(view) {
-            document.getElementById('auth-modal').classList.remove('hidden');
-            switchAuthView(view);
-        }
-
-        function closeAuthModal() {
-            document.getElementById('auth-modal').classList.add('hidden');
-        }
-
-        function switchAuthView(view) {
-            const title = document.getElementById('auth-modal-title');
-            document.getElementById('form-login').classList.add('hidden');
-            document.getElementById('form-register').classList.add('hidden');
-            document.getElementById('form-forgot').classList.add('hidden');
-
-            if (view === 'login') {
-                title.innerText = "Connexion Sécurisée";
-                document.getElementById('form-login').classList.remove('hidden');
-            } else if (view === 'register') {
-                title.innerText = "Créer un Compte Citoyen";
-                document.getElementById('form-register').classList.remove('hidden');
-            } else if (view === 'forgot') {
-                title.innerText = "Mot de Passe Oublié";
-                document.getElementById('form-forgot').classList.remove('hidden');
-            }
-        }
-
-        function votePoll(type) {
-            if (type === 'yes') state.pollVotes.yes++;
-            else state.pollVotes.no++;
-            localStorage.setItem('wapi_poll', JSON.stringify(state.pollVotes));
-            document.getElementById('poll-yes-cnt').innerText = state.pollVotes.yes;
-            document.getElementById('poll-no-cnt').innerText = state.pollVotes.no;
-            showToast("Merci pour votre vote citoyen !", "success");
-        }
-
-        function showToast(msg, type = "info") {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
+        function renderChatMessages(salonId) {
+            const box = document.getElementById('chat-messages-box');
+            box.innerHTML = '';
             
-            let bg = "bg-slate-800 text-white";
-            if (type === "error") bg = "bg-red-600 text-white";
-            if (type === "success") bg = "bg-emerald-600 text-white";
+            const messages = salonsStore[salonId] || [];
 
-            toast.className = `p-4 rounded-2xl shadow-xl ${bg} text-xs font-bold pointer-events-auto flex items-center justify-between transition-all transform translate-y-2`;
-            toast.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.remove()" class="ml-3"><i class="fa-solid fa-xmark"></i></button>`;
-
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-        }
-
-        function loadSampleDataIfEmpty() {
-            if (state.reports.length === 0) {
-                state.reports = [
-                    { id: '1', status: 'outage', dept: 'Brazzaville', quarter: 'Makélékélé', details: 'Coupure générale depuis 14h', time: '14:30', user: 'Serge' },
-                    { id: '2', status: 'unstable', dept: 'Pointe-Noire', quarter: 'Tié-Tié', details: 'Baisse de tension sévère', time: '15:10', user: 'Clarisse' },
-                    { id: '3', status: 'restored', dept: 'Niari', quarter: 'Dolisie Centre', details: 'Courant rétabli à 100%', time: '16:00', user: 'Alain' }
-                ];
-                localStorage.setItem('wapi_reports', JSON.stringify(state.reports));
-            }
-            document.getElementById('poll-yes-cnt').innerText = state.pollVotes.yes;
-            document.getElementById('poll-no-cnt').innerText = state.pollVotes.no;
-        }
-
-        function saveProfileInfo(e) {
-            e.preventDefault();
-            if (!state.currentUser) return;
-            const fullName = document.getElementById('prof-fullname').value.split(' ');
-            state.currentUser.firstname = fullName[0] || '';
-            state.currentUser.lastname = fullName.slice(1).join(' ') || '';
-            state.currentUser.dept = document.getElementById('prof-dept').value;
-            saveUserToStorage();
-            updateUserUI();
-            showToast("Informations du profil enregistrées.", "success");
-        }
-
-        async function handleChangePassword(e) {
-            e.preventDefault();
-            if (!state.currentUser) return;
-            const oldP = document.getElementById('pwd-old').value;
-            const newP = document.getElementById('pwd-new').value;
-
-            const oldHash = await hashPassword(oldP);
-            if (oldHash !== state.currentUser.passwordHash) {
-                showToast("Mot de passe actuel incorrect.", "error");
+            if (messages.length === 0) {
+                box.innerHTML = `<div class="text-center text-xs text-slate-400 my-6">Aucun message dans ce salon. Soyez le premier à informer votre zone !</div>`;
                 return;
             }
 
-            state.currentUser.passwordHash = await hashPassword(newP);
-            saveUserToStorage();
-            showToast("Mot de passe mis à jour avec succès !", "success");
-            e.target.reset();
+            messages.forEach(m => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-3 rounded-xl border border-slate-200 shadow-sm max-w-[88%]";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-xs text-blue-700">${m.user}</span>
+                        <span class="text-[10px] text-slate-400">${m.time}</span>
+                    </div>
+                    <p class="text-sm text-slate-700">${m.text}</p>
+                `;
+                box.appendChild(div);
+            });
+
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function handleSendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input-text');
+            const text = input.value.trim();
+            const salonId = document.getElementById('salon-select').value;
+            const pseudo = localStorage.getItem('wapi_user_pseudo') || "Citoyen";
+
+            if (!text) return;
+
+            if (!salonsStore[salonId]) salonsStore[salonId] = [];
+
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            salonsStore[salonId].push({ user: pseudo, text: text, time: timeStr });
+
+            input.value = '';
+            renderChatMessages(salonId);
+        }
+
+        /* --- 5. ASSISTANT IA INTÉGRÉ --- */
+        function handleSendAIMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-input-text');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const box = document.getElementById('ai-messages-box');
+
+            // Message utilisateur
+            const userDiv = document.createElement('div');
+            userDiv.className = "bg-purple-600 text-white p-3 rounded-xl shadow-sm text-sm ml-auto max-w-[85%]";
+            userDiv.textContent = text;
+            box.appendChild(userDiv);
+
+            input.value = '';
+            box.scrollTop = box.scrollHeight;
+
+            // Réponse de l'assistant IA
+            setTimeout(() => {
+                const aiDiv = document.createElement('div');
+                aiDiv.className = "bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-sm text-slate-700 leading-relaxed max-w-[90%]";
+                aiDiv.innerHTML = generateAIResponse(text);
+                box.appendChild(aiDiv);
+                box.scrollTop = box.scrollHeight;
+            }, 500);
+        }
+
+        function generateAIResponse(query) {
+            const q = query.toLowerCase();
+            if (q.includes('appareil') || q.includes('frigo') || q.includes('tele')) {
+                return "💡 <strong>Conseil de protection :</strong> Débranchez vos appareils sensibles immédiatement lors d'une coupure. Attendez environ 5 minutes après le retour de l'électricité avant de les rebrancher afin d'éviter les pics de tension.";
+            } else if (q.includes('panne') || q.includes('coupure') || q.includes('pourquoi')) {
+                return "⚡ Les coupures peuvent être dues à des maintenances sur le réseau ou des délestages. Vérifiez le salon de votre département pour voir si vos voisins subissent la même panne.";
+            } else if (q.includes('partager') || q.includes('whatsapp')) {
+                return "📲 Vous pouvez utiliser le bouton <strong>Partager</strong> en haut à droite pour diffuser l'application dans vos groupes WhatsApp de quartier !";
+            } else {
+                return "🤖 Je suis l'Assistant Wapi 242. Je peux vous aider à mieux gérer l'énergie domestique, vous donner des conseils de sécurité ou vous expliquer comment signaler une panne.";
+            }
+        }
+
+        /* --- 6. NAVIGATION MOBILES & UTILS --- */
+        function switchSidebarTab(tab) {
+            const btnChat = document.getElementById('btn-tab-chat');
+            const btnAi = document.getElementById('btn-tab-ai');
+            const contentChat = document.getElementById('tab-content-chat');
+            const contentAi = document.getElementById('tab-content-ai');
+
+            if (tab === 'chat') {
+                btnChat.className = "flex-1 py-3 px-4 font-bold text-sm text-blue-700 border-b-2 border-blue-700 bg-white flex items-center justify-center gap-2 transition";
+                btnAi.className = "flex-1 py-3 px-4 font-bold text-sm text-slate-500 hover:text-blue-600 flex items-center justify-center gap-2 transition";
+                contentChat.classList.remove('hidden');
+                contentAi.classList.add('hidden');
+                renderChatMessages(document.getElementById('salon-select').value);
+            } else {
+                btnAi.className = "flex-1 py-3 px-4 font-bold text-sm text-purple-700 border-b-2 border-purple-700 bg-white flex items-center justify-center gap-2 transition";
+                btnChat.className = "flex-1 py-3 px-4 font-bold text-sm text-slate-500 hover:text-blue-600 flex items-center justify-center gap-2 transition";
+                contentAi.classList.remove('hidden');
+                contentChat.classList.add('hidden');
+            }
+        }
+
+        function toggleSidebarMobile() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function shareAppWhatsApp() {
+            const text = encodeURIComponent("⚡ Suivez l'état du réseau électrique et les coupures en direct au Congo sur Wapi Courant 242 : " + window.location.href);
+            window.open("https://api.whatsapp.com/send?text=" + text, "_blank");
         }
     </script>
 </body>
