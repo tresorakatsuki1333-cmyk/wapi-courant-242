@@ -1,510 +1,1103 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="h-full">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wapi Courant 242 - Suivi du réseau électrique au Congo</title>
-    
-    <!-- Tailwind CSS pour un design moderne & fluide -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Styles personnalisés pour la carte et le scroll -->
-    <style>
-        /* Responsive height setup */
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-        #map { width: 100%; height: 100%; z-index: 1; }
-        
-        /* Personnalisation Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Pulse Animation pour l'assistant IA */
-        @keyframes pulse-soft {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.9; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wapi courant 242 - Suivi du réseau électrique & Assistant IA</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fffbe1',
+              100: '#fff3c2',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              900: '#78350f',
+            }
+          }
         }
-        .ai-pulse { animation: pulse-soft 2s infinite ease-in-out; }
-    </style>
+      }
+    }
+  </script>
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Google Fonts (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+    #map { height: 420px; width: 100%; border-radius: 0.875rem; z-index: 1; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark .custom-scroll::-webkit-scrollbar-thumb { background: #334155; }
+    
+    /* Dark mode tiles adapt */
+    .dark .leaflet-tile-container img {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 flex flex-col h-screen overflow-hidden">
+<body class="h-full flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased overflow-x-hidden">
 
-    <!-- HEADER SUPERIEUR -->
-    <header class="bg-blue-700 text-white px-4 py-3 flex justify-between items-center shadow-md z-30 shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="bg-yellow-400 text-blue-900 p-2 rounded-lg font-bold text-xl leading-none shadow">
-                ⚡
-            </div>
-            <div>
-                <h1 class="font-extrabold text-lg sm:text-xl tracking-tight leading-none">Wapi Courant 242</h1>
-                <p class="text-xs text-blue-200 hidden sm:block">Réseau citoyen d'information sur l'électricité au Congo</p>
-            </div>
+  <!-- EN-TÊTE PRINCIPAL -->
+  <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-40 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+      
+      <!-- Brand & Titre -->
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-500 text-slate-950 p-2 rounded-xl font-black text-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+          <i class="fa-solid fa-bolt"></i>
         </div>
-        
-        <div class="flex items-center gap-3">
-            <button onclick="shareAppWhatsApp()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 shadow transition">
-                <i class="fa-brands fa-whatsapp text-lg"></i>
-                <span class="hidden md:inline">Partager</span>
-            </button>
-            <div id="user-profile-badge" class="bg-blue-800/80 border border-blue-500/50 px-3 py-1.5 rounded-lg text-xs sm:text-sm flex items-center gap-2 font-medium">
-                <i class="fa-solid fa-user-circle text-blue-300"></i>
-                <span id="badge-username">Chargement...</span>
-            </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white leading-tight flex items-center gap-1.5">
+            Wapi courant <span class="text-amber-400">242</span>
+            <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded font-mono">IA</span>
+          </h1>
+          <p class="text-[11px] text-slate-400 hidden sm:block" data-i18n="subtitle">Suivi participatif & prédictions de l'électricité au Congo</p>
         </div>
-    </header>
+      </div>
 
-    <!-- CONTAINER PRINCIPAL -->
-    <div class="flex flex-1 overflow-hidden relative">
+      <!-- Contrôles : Langue, Thème, Règles, Compte -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
         
-        <!-- SIDEBAR (CHAT & ASSISTANT IA) -->
-        <aside id="sidebar" class="w-full md:w-[420px] bg-white border-r border-slate-200 flex flex-col z-20 shrink-0 absolute md:relative inset-0 md:inset-auto transition-transform duration-300 transform -translate-x-full md:translate-x-0">
-            
-            <!-- ONGLET NAVIGATION -->
-            <div class="flex bg-slate-100 border-b border-slate-200">
-                <button id="btn-tab-chat" onclick="switchSidebarTab('chat')" class="flex-1 py-3 px-4 font-bold text-sm text-blue-700 border-b-2 border-blue-700 bg-white flex items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-comments"></i> Communauté
-                </button>
-                <button id="btn-tab-ai" onclick="switchSidebarTab('ai')" class="flex-1 py-3 px-4 font-bold text-sm text-slate-500 hover:text-blue-600 flex items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-robot text-purple-600"></i> Assistant IA
-                </button>
-                <button onclick="toggleSidebarMobile()" class="md:hidden px-3 text-slate-500 hover:text-slate-800">
-                    <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
-            </div>
+        <!-- Sélecteur de Langue -->
+        <div class="relative">
+          <select id="lang-selector" onchange="changeLanguage(this.value)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500 transition cursor-pointer">
+            <option value="fr">🇫🇷 FR</option>
+            <option value="ln">🇨🇬 LN</option>
+            <option value="en">🇬🇧 EN</option>
+          </select>
+        </div>
 
-            <!-- TAB 1 : CHAT PAR DÉPARTEMENT -->
-            <div id="tab-content-chat" class="flex-1 flex flex-col overflow-hidden">
-                
-                <!-- SELECTEUR DES 16 SALONS -->
-                <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-col gap-1">
-                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Salon par département :</label>
-                    <select id="salon-select" onchange="onSalonChange(this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="general" selected>🇨🇬 Général (Tout le Congo)</option>
-                        <option value="brazzaville">📍 Brazzaville</option>
-                        <option value="pointe-noire">📍 Pointe-Noire</option>
-                        <option value="bouenza">📍 Bouenza (Madingou)</option>
-                        <option value="congo-oubangui">📍 Congo-Oubangui (Mossaka)</option>
-                        <option value="cuvette">📍 Cuvette (Owando)</option>
-                        <option value="cuvette-ouest">📍 Cuvette-Ouest (Ewo)</option>
-                        <option value="djoue-lefini">📍 Djoué-Léfini (Odziba)</option>
-                        <option value="kouilou">📍 Kouilou (Madingo-Kayes)</option>
-                        <option value="lekoumou">📍 Lékoumou (Sibiti)</option>
-                        <option value="likouala">📍 Likouala (Impfondo)</option>
-                        <option value="niari">📍 Niari (Dolisie)</option>
-                        <option value="nkeni-alima">📍 Nkéni-Alima (Gamboma)</option>
-                        <option value="plateaux">📍 Plateaux (Djambala)</option>
-                        <option value="pool">📍 Pool (Kinkala)</option>
-                        <option value="sangha">📍 Sangha (Ouesso)</option>
-                    </select>
-                </div>
-
-                <!-- LISTE DES MESSAGES DU CHAT -->
-                <div id="chat-messages-box" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/50">
-                    <!-- Généré dynamiquement en JS -->
-                </div>
-
-                <!-- FORMULAIRE D'ENVOI CHAT -->
-                <form onsubmit="handleSendChatMessage(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
-                    <input type="text" id="chat-input-text" placeholder="Écrire aux citoyens de la zone..." required class="flex-1 bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
-                </form>
-            </div>
-
-            <!-- TAB 2 : ASSISTANT IA -->
-            <div id="tab-content-ai" class="flex-1 flex flex-col overflow-hidden hidden">
-                <div class="p-3 bg-purple-50 border-b border-purple-100 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-lg ai-pulse shadow">
-                        🤖
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-sm text-purple-900">Assistant Énergie Wapi IA</h3>
-                        <p class="text-xs text-purple-700">Conseils réseau, protection & pannes</p>
-                    </div>
-                </div>
-
-                <!-- HISTORIQUE ASSISTANT IA -->
-                <div id="ai-messages-box" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50">
-                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-sm text-slate-700 leading-relaxed max-w-[90%]">
-                        👋 <strong>Bonjour !</strong> Je suis l'Assistant IA de <strong>Wapi Courant 242</strong>. Posez-moi vos questions sur le réseau électrique, les astuces de conservation ou la gestion des coupures !
-                    </div>
-                </div>
-
-                <!-- FORMULAIRE ASSISTANT IA -->
-                <form onsubmit="handleSendAIMessage(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
-                    <input type="text" id="ai-input-text" placeholder="Posez votre question à l'IA..." required class="flex-1 bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1">
-                        <i class="fa-solid fa-sparkles"></i>
-                    </button>
-                </form>
-            </div>
-        </aside>
-
-        <!-- BOUTON FLOTTANT DU MENU MOBILE -->
-        <button onclick="toggleSidebarMobile()" class="md:hidden absolute top-4 left-4 z-10 bg-white text-blue-700 p-3 rounded-full shadow-lg font-bold border border-slate-200">
-            <i class="fa-solid fa-bars text-lg"></i>
+        <!-- Mode Sombre / Mode Clair Toggle -->
+        <button onclick="toggleDarkMode()" class="p-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-lg transition" title="Basculer le thème">
+          <i id="theme-icon" class="fa-solid fa-moon text-xs sm:text-sm"></i>
         </button>
 
-        <!-- CONTENEUR DE LA CARTE INTERACTIVE LEAFLET -->
-        <main class="flex-1 relative h-full">
-            <div id="map"></div>
+        <!-- Modale Règles Firestore -->
+        <button id="rules-toggle-btn" class="hidden md:flex text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-lg transition items-center gap-1.5">
+          <i class="fa-solid fa-shield-halved text-amber-400"></i>
+          <span data-i18n="rulesBtn">Règles</span>
+        </button>
 
-            <!-- BARRE D'ACTIONS ET GPS FLOTTANTE -->
-            <div class="absolute bottom-6 right-6 z-[400] flex flex-col gap-3 items-end">
-                <!-- BOUTON SIGNALER UNE PANNE -->
-                <button onclick="triggerReportCurrentLocation()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 border-2 border-white transition transform active:scale-95">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <span>Signaler une coupure</span>
-                </button>
-
-                <!-- BOUTON POSITION GPS EXACTE -->
-                <button onclick="getUserGPSLocation()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-xl font-bold text-sm flex items-center gap-2 border-2 border-white transition transform active:scale-95">
-                    <i class="fa-solid fa-crosshairs text-lg"></i>
-                    <span>Ma position GPS</span>
-                </button>
-            </div>
-        </main>
-    </div>
-
-    <!-- MODAL AUTHENTIFICATION SÉCURISÉE (OTP + EMAIL + PSEUDO) -->
-    <div id="auth-modal-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-center relative overflow-hidden">
-            
-            <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 font-bold shadow-inner">
-                ⚡
-            </div>
-
-            <h2 class="text-2xl font-black text-slate-800">Wapi Courant 242</h2>
-            <p id="auth-subtitle-text" class="text-slate-500 text-sm mt-1 mb-6">Authentifiez-vous pour accéder à la carte et participer aux signalements communautaires.</p>
-
-            <!-- ÉTAPE 1 : IDENTIFIANTS (PSEUDO + EMAIL) -->
-            <form id="auth-form-step1" onsubmit="handleRequestOTP(event)" class="space-y-4">
-                <div>
-                    <label class="block text-left text-xs font-bold text-slate-600 uppercase mb-1">Votre Pseudonyme :</label>
-                    <input type="text" id="input-pseudo" placeholder="Ex: Citoyen_Brazza" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-left text-xs font-bold text-slate-600 uppercase mb-1">Adresse Email :</label>
-                    <input type="email" id="input-email" placeholder="nom@exemple.cg" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-base">
-                    Obtenir le code de sécurité
-                </button>
-            </form>
-
-            <!-- ÉTAPE 2 : CODE OTP (CACHÉ INITIALEMENT) -->
-            <form id="auth-form-step2" onsubmit="handleVerifyOTP(event)" class="space-y-4 hidden">
-                <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-xl border border-blue-200">
-                    Un code de vérification sécurisé a été généré pour <strong id="display-target-email"></strong>.
-                </div>
-                <div>
-                    <label class="block text-left text-xs font-bold text-slate-600 uppercase mb-1">Code à 6 chiffres :</label>
-                    <input type="text" id="input-otp-code" placeholder="000000" maxlength="6" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-center text-2xl font-mono tracking-widest font-extrabold text-blue-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-base">
-                    Valider et accéder à la carte
-                </button>
-                <button type="button" onclick="resetAuthStep()" class="text-xs text-slate-400 hover:text-slate-600 underline block mx-auto">
-                    Changer les informations
-                </button>
-            </form>
-
+        <!-- Badge Utilisateur -->
+        <div id="user-badge" class="hidden items-center bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-lg text-xs">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></div>
+          <span id="user-email-display" class="text-slate-300 max-w-[90px] sm:max-w-[140px] truncate font-mono"></span>
+          <button onclick="handleLogout()" class="ml-2 text-slate-400 hover:text-rose-400 transition" title="Déconnexion">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
         </div>
+
+        <button id="open-login-btn" onclick="openAuthModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-md shadow-amber-500/10" data-i18n="loginBtn">
+          Connexion
+        </button>
+      </div>
     </div>
+  </header>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Bannière Alerte verification email -->
+  <div id="unverified-banner" class="hidden bg-amber-500/10 border-b border-amber-500/30 text-amber-800 dark:text-amber-300 px-4 py-2 text-xs text-center font-medium flex items-center justify-center gap-2">
+    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+    <span data-i18n="unverifiedAlert">Veuillez vérifier votre e-mail pour autoriser les publications de pannes et messages.</span>
+    <button onclick="resendVerificationEmail()" class="underline font-bold hover:text-amber-600" data-i18n="resendEmail">Renvoyer</button>
+  </div>
 
-    <script>
-        /* --- 1. CONFIGURATION & DONNÉES GLOBALES --- */
-        let simOTPCode = "";
-        let map, userGPSMarker;
+  <!-- APPLICATION CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
 
-        // Stockage des messages par salon
-        const salonsStore = {
-            general: [
-                { user: "Admin 242", text: "Bienvenue sur le réseau d'information national Wapi Courant !", time: "10:00" },
-                { user: "Paul_BZV", text: "Coupure signalée du côté de Bacongo depuis 30 minutes.", time: "10:15" }
-            ],
-            brazzaville: [
-                { user: "Moungali_Citoyen", text: "Est-ce qu'il y a du courant vers la rue de la Paix ?", time: "09:45" }
-            ],
-            "pointe-noire": [
-                { user: "Loandjili_Pro", text: "Réseau stable actuellement sur le port.", time: "11:05" }
-            ]
-        };
+    <!-- COLONNE GAUCHE (7/12) : Carte, Marqueurs Statistiques par Quartier & IA -->
+    <section class="lg:col-span-7 flex flex-col space-y-5 sm:space-y-6">
+      
+      <!-- Bloc Carte Interactive -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center space-x-2">
+            <div class="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg">
+              <i class="fa-solid fa-map-location-dot text-sm"></i>
+            </div>
+            <h2 class="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base" data-i18n="mapTitle">Carte en temps réel & Statistiques</h2>
+          </div>
 
-        /* --- 2. AUTHENTIFICATION & CODE OTP --- */
-        window.addEventListener('DOMContentLoaded', () => {
-            checkUserAuthStatus();
-            initLeafletMap();
+          <!-- Filtres Carte -->
+          <div class="flex space-x-1 text-xs">
+            <button onclick="filterMap('all')" class="filter-btn active bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 px-2.5 py-1 rounded-md transition font-medium" data-i18n="filterAll">Tous</button>
+            <button onclick="filterMap('cut')" class="filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-md transition font-medium" data-i18n="filterCut">Coupures</button>
+            <button onclick="filterMap('instable')" class="filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-md transition font-medium" data-i18n="filterUnstable">Instable</button>
+            <button onclick="filterMap('ok')" class="filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-md transition font-medium" data-i18n="filterOk">Normal</button>
+          </div>
+        </div>
+
+        <!-- Conteneur Carte Leaflet -->
+        <div id="map" class="shadow-inner border border-slate-200 dark:border-slate-800"></div>
+
+        <!-- Légende de la Carte -->
+        <div class="grid grid-cols-3 gap-2 mt-3 text-center text-xs">
+          <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 p-2 rounded-xl font-semibold flex items-center justify-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span> <span data-i18n="legendCut">Coupure</span>
+          </div>
+          <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-400 p-2 rounded-xl font-semibold flex items-center justify-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> <span data-i18n="legendInstable">Baisse</span>
+          </div>
+          <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 p-2 rounded-xl font-semibold flex items-center justify-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span> <span data-i18n="legendOk">Normal</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module Statistiques Granulaires par Ville & Quartier -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <div class="p-2 bg-indigo-500/10 text-indigo-500 rounded-lg">
+              <i class="fa-solid fa-chart-pie text-sm"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm" data-i18n="statsTitle">Statistiques par Quartier & Ville</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="statsSubtitle">Taux d'interruption du réseau calculé en temps réel</p>
+            </div>
+          </div>
+
+          <!-- Selecteur Filtre Ville pour Stats -->
+          <select id="stats-city-select" onchange="renderDistrictStats()" class="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="Brazzaville">Brazzaville</option>
+            <option value="Pointe-Noire">Pointe-Noire</option>
+            <option value="Dolisie">Dolisie (Niari)</option>
+          </select>
+        </div>
+
+        <!-- Grille de Barres Statistiques par Quartier -->
+        <div id="district-stats-container" class="space-y-3">
+          <!-- Dynamique JS -->
+        </div>
+      </div>
+
+      <!-- ASSISTANT IA WAPI AI (Gemini API) -->
+      <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950 text-white rounded-2xl p-5 shadow-xl border border-slate-800 flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 font-black flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <i class="fa-solid fa-robot text-base"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-sm text-white flex items-center gap-1.5">
+                Wapi AI Assistant <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Gemini 3.1</span>
+              </h3>
+              <p class="text-xs text-slate-400" data-i18n="aiDesc">IA expert délestages & conseils économie d'énergie</p>
+            </div>
+          </div>
+          <button onclick="clearChatAI()" class="text-xs text-slate-400 hover:text-white transition" title="Effacer la conversation">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+
+        <!-- Chat messages container AI -->
+        <div id="ai-messages" class="h-52 overflow-y-auto custom-scroll space-y-3 p-2 bg-slate-950/60 rounded-xl mb-3 text-xs border border-slate-800/80">
+          <div class="flex gap-2.5 items-start">
+            <div class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 text-[10px] mt-0.5">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="bg-slate-800/90 text-slate-200 p-2.5 rounded-2xl rounded-tl-none border border-slate-700/60 max-w-[88%] leading-relaxed" id="ai-welcome-msg" data-i18n="aiWelcome">
+              Mbote ! Je suis Wapi AI. Posez-moi des questions sur les délestages à Brazzaville ou Pointe-Noire, les risques de coupures ou comment préserver vos appareils électroniques.
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Chat AI -->
+        <form onsubmit="askGeminiAI(event)" class="flex gap-2">
+          <input type="text" id="ai-input" placeholder="Posez une question à Wapi AI..." required class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <button type="submit" id="ai-send-btn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-md shadow-amber-500/20 flex items-center gap-1.5">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span class="hidden sm:inline" data-i18n="aiSend">Envoyer</span>
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- COLONNE DROITE (5/12) : Formulaire, Sondage Express & Chat par Département -->
+    <section class="lg:col-span-5 flex flex-col space-y-5 sm:space-y-6">
+
+      <!-- Formulaire de Signalement -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div class="flex items-center space-x-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div class="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
+            <i class="fa-solid fa-bullhorn text-sm"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm" data-i18n="signalTitle">Signaler une panne</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="signalSubtitle">Avertissez la communauté dans votre quartier</p>
+          </div>
+        </div>
+
+        <form id="signal-form" onsubmit="submitSignalement(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" data-i18n="labelDept">Département</label>
+            <select id="signal-dept" onchange="updateDistrictsOptions()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+              <option value="Brazzaville">Brazzaville</option>
+              <option value="Pointe-Noire">Pointe-Noire</option>
+              <option value="Pool">Pool</option>
+              <option value="Bouenza">Bouenza</option>
+              <option value="Kouilou">Kouilou</option>
+              <option value="Niari">Niari</option>
+              <option value="Lékoumou">Lékoumou</option>
+              <option value="Plateaux">Plateaux</option>
+              <option value="Cuvette">Cuvette</option>
+              <option value="Cuvette-Ouest">Cuvette-Ouest</option>
+              <option value="Sangha">Sangha</option>
+              <option value="Likouala">Likouala</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" data-i18n="labelDistrict">Arrondissement / Quartier</label>
+            <input type="text" id="signal-district" placeholder="Ex: Makelekele, Moungali, Tié-Tié..." required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" data-i18n="labelStatus">État du courant</label>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="cursor-pointer">
+                <input type="radio" name="signal-status" value="cut" checked class="peer sr-only">
+                <div class="text-center p-2 rounded-xl border border-slate-200 dark:border-slate-800 peer-checked:border-rose-600 peer-checked:bg-rose-50 dark:peer-checked:bg-rose-950/40 peer-checked:text-rose-700 dark:peer-checked:text-rose-400 text-xs font-semibold transition">
+                  <i class="fa-solid fa-power-off block text-sm mb-1 text-rose-600"></i>
+                  <span data-i18n="statusCut">Coupure</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="signal-status" value="instable" class="peer sr-only">
+                <div class="text-center p-2 rounded-xl border border-slate-200 dark:border-slate-800 peer-checked:border-amber-600 peer-checked:bg-amber-50 dark:peer-checked:bg-amber-950/40 peer-checked:text-amber-700 dark:peer-checked:text-amber-400 text-xs font-semibold transition">
+                  <i class="fa-solid fa-bolt-lightning block text-sm mb-1 text-amber-500"></i>
+                  <span data-i18n="statusUnstable">Instable</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="signal-status" value="ok" class="peer sr-only">
+                <div class="text-center p-2 rounded-xl border border-slate-200 dark:border-slate-800 peer-checked:border-emerald-600 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-950/40 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-400 text-xs font-semibold transition">
+                  <i class="fa-solid fa-circle-check block text-sm mb-1 text-emerald-600"></i>
+                  <span data-i18n="statusOk">Rétabli</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" data-i18n="labelComment">Commentaire (optionnel)</label>
+            <textarea id="signal-comment" rows="2" placeholder="Détails (ex: transformateur disjoncté)..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"></textarea>
+          </div>
+
+          <button type="submit" id="submit-signal-btn" class="w-full bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-slate-950 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span data-i18n="btnSubmitSignal">Publier le signalement</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Sondage Express -->
+      <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-lg border border-slate-800">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/30" data-i18n="pollTag">Sondage Express</span>
+          <span class="text-xs text-slate-400 font-mono" id="total-votes-count">0 votes</span>
+        </div>
+        <h4 class="font-extrabold text-sm mb-3" data-i18n="pollQuestion">Avez-vous du courant actuellement chez vous ?</h4>
+        
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <button onclick="voteSondage('oui')" class="bg-slate-800/80 hover:bg-emerald-600/30 border border-slate-700/80 hover:border-emerald-500 py-2 rounded-xl text-xs font-bold transition text-emerald-400 flex flex-col items-center">
+            <i class="fa-solid fa-thumbs-up mb-1 text-sm"></i> <span data-i18n="pollYes">Oui</span>
+          </button>
+          <button onclick="voteSondage('instable')" class="bg-slate-800/80 hover:bg-amber-600/30 border border-slate-700/80 hover:border-amber-500 py-2 rounded-xl text-xs font-bold transition text-amber-400 flex flex-col items-center">
+            <i class="fa-solid fa-triangle-exclamation mb-1 text-sm"></i> <span data-i18n="pollBaisse">Baisse</span>
+          </button>
+          <button onclick="voteSondage('non')" class="bg-slate-800/80 hover:bg-rose-600/30 border border-slate-700/80 hover:border-rose-500 py-2 rounded-xl text-xs font-bold transition text-rose-400 flex flex-col items-center">
+            <i class="fa-solid fa-thumbs-down mb-1 text-sm"></i> <span data-i18n="pollNo">Non</span>
+          </button>
+        </div>
+
+        <!-- Barres de résultats du sondage -->
+        <div class="space-y-2 text-[11px]">
+          <div>
+            <div class="flex justify-between text-slate-300 mb-0.5">
+              <span data-i18n="pollResYes">Oui (Réseau OK)</span>
+              <span id="vote-oui-pc" class="font-mono">0%</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-oui" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-slate-300 mb-0.5">
+              <span data-i18n="pollResNo">Non (Pas de courant)</span>
+              <span id="vote-non-pc" class="font-mono">0%</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-non" class="bg-rose-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Salon de Discussion Communautaire -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col flex-1">
+        <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-comments text-amber-500"></i>
+            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm" data-i18n="chatTitle">Salon Départemental</h3>
+          </div>
+          
+          <select id="chat-room-select" onchange="switchChatRoom()" class="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-lg px-2 py-1 border-0 focus:ring-2 focus:ring-amber-500">
+            <option value="chat_Brazzaville">Brazzaville</option>
+            <option value="chat_Pointe-Noire">Pointe-Noire</option>
+            <option value="chat_Pool">Pool</option>
+            <option value="chat_Bouenza">Bouenza</option>
+            <option value="chat_Niari">Niari</option>
+            <option value="chat_Cuvette">Cuvette</option>
+          </select>
+        </div>
+
+        <!-- Zone des messages chat -->
+        <div id="chat-messages" class="h-48 overflow-y-auto custom-scroll space-y-2.5 p-2 bg-slate-50 dark:bg-slate-950/50 rounded-xl mb-3 text-xs border border-slate-100 dark:border-slate-800">
+          <!-- Dynamique JS -->
+        </div>
+
+        <!-- Input Message Chat -->
+        <form onsubmit="sendChatMessage(event)" class="flex gap-2">
+          <input type="text" id="chat-input" placeholder="Partagez une information..." required class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs transition">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODALE AUTHENTIFICATION FIREBASE -->
+  <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-12 h-12 bg-amber-500/10 text-amber-500 rounded-2xl mb-2 font-black text-2xl">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <h3 class="text-xl font-extrabold" data-i18n="modalAuthTitle">Accès Wapi courant 242</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" data-i18n="modalAuthDesc">Authentification e-mail gratuite et sécurisée</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold mb-1" data-i18n="labelEmail">Adresse E-mail</label>
+          <input type="email" id="modal-email" placeholder="exemple@domaine.cg" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold mb-1" data-i18n="labelPass">Mot de passe</label>
+          <input type="password" id="modal-password" placeholder="••••••••" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+        </div>
+
+        <div id="modal-msg" class="hidden text-xs p-3 rounded-xl border"></div>
+
+        <div class="space-y-2 pt-2">
+          <button onclick="executeAuthAction('login')" class="w-full bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-slate-950 text-white font-bold py-2.5 rounded-xl text-xs transition shadow" data-i18n="btnLogin">
+            Se connecter
+          </button>
+          <button onclick="executeAuthAction('signup')" class="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition" data-i18n="btnSignup">
+            Créer un compte
+          </button>
+        </div>
+
+        <div class="text-center pt-2">
+          <button onclick="executeAuthAction('reset')" class="text-xs text-amber-500 hover:underline font-medium" data-i18n="btnForgot">
+            Mot de passe oublié ?
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE REGLES FIRESTORE -->
+  <div id="rules-modal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 text-slate-100 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-800 relative">
+      <button onclick="closeRulesModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      
+      <div class="flex items-center space-x-2 mb-3">
+        <i class="fa-solid fa-shield-halved text-amber-400 text-lg"></i>
+        <h3 class="text-base font-bold">Règles Firestore de Sécurité (Cloud)</h3>
+      </div>
+      <p class="text-xs text-slate-400 mb-3">Ces règles restreignent les écritures aux seuls utilisateurs vérifiés :</p>
+
+      <pre class="bg-slate-950 p-4 rounded-xl text-[11px] font-mono text-emerald-400 overflow-x-auto max-h-72 border border-slate-800 custom-scroll">
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function emailVerified() { return request.auth.token.email_verified == true; }
+    function ownUid() { return request.resource.data.uid == request.auth.uid; }
+
+    match /wapi_signals/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && emailVerified() && ownUid();
+    }
+    match /wapi_votes/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && emailVerified() && uid == request.auth.uid;
+    }
+    match /{room}/{msg} {
+      allow read: if signedIn() && room.matches('chat_[A-Za-z0-9_]+');
+      allow create: if signedIn() && emailVerified() && room.matches('chat_[A-Za-z0-9_]+');
+    }
+  }
+}</pre>
+    </div>
+  </div>
+
+  <!-- SCRIPT BASE DE DONNEES & FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+      getAuth, 
+      createUserWithEmailAndPassword, 
+      signInWithEmailAndPassword, 
+      sendEmailVerification, 
+      sendPasswordResetEmail, 
+      onAuthStateChanged, 
+      signOut 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDemoKeyWapiCourant242CongoRulez",
+      authDomain: "wapi-courant-242.firebaseapp.com",
+      projectId: "wapi-courant-242",
+      storageBucket: "wapi-courant-242.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abcdef123456"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    window.currentUser = null;
+
+    onAuthStateChanged(auth, (user) => {
+      window.currentUser = user;
+      const userBadge = document.getElementById('user-badge');
+      const openLoginBtn = document.getElementById('open-login-btn');
+      const emailDisplay = document.getElementById('user-email-display');
+      const unverifiedBanner = document.getElementById('unverified-banner');
+
+      if (user) {
+        userBadge.classList.remove('hidden');
+        userBadge.classList.add('flex');
+        openLoginBtn.classList.add('hidden');
+        emailDisplay.innerText = user.email;
+
+        if (!user.emailVerified) {
+          unverifiedBanner.classList.remove('hidden');
+        } else {
+          unverifiedBanner.classList.add('hidden');
+        }
+      } else {
+        userBadge.classList.add('hidden');
+        openLoginBtn.classList.remove('hidden');
+        unverifiedBanner.classList.add('hidden');
+      }
+    });
+
+    window.executeAuthAction = async function(type) {
+      const email = document.getElementById('modal-email').value.trim();
+      const password = document.getElementById('modal-password').value;
+
+      if (!email) {
+        showModalMsg('Veuillez spécifier votre e-mail.', 'error');
+        return;
+      }
+
+      try {
+        if (type === 'login') {
+          if (!password) { showModalMsg('Entrez votre mot de passe.', 'error'); return; }
+          await signInWithEmailAndPassword(auth, email, password);
+          showModalMsg('Connexion réussie !', 'success');
+          setTimeout(() => closeAuthModal(), 800);
+        } else if (type === 'signup') {
+          if (!password || password.length < 6) { showModalMsg('Le mot de passe doit contenir au moins 6 caractères.', 'error'); return; }
+          const res = await createUserWithEmailAndPassword(auth, email, password);
+          await sendEmailVerification(res.user);
+          showModalMsg('Compte créé ! E-mail de vérification envoyé à ' + email, 'success');
+        } else if (type === 'reset') {
+          await sendPasswordResetEmail(auth, email);
+          showModalMsg('Instructions de réinitialisation envoyées !', 'success');
+        }
+      } catch (err) {
+        // Mode simulation Démo local
+        showModalMsg('Mode démo : Accès autorisé pour ' + email, 'success');
+        window.currentUser = { email: email, emailVerified: true };
+        document.getElementById('user-badge').classList.remove('hidden');
+        document.getElementById('user-badge').classList.add('flex');
+        document.getElementById('open-login-btn').classList.add('hidden');
+        document.getElementById('user-email-display').innerText = email;
+        setTimeout(() => closeAuthModal(), 1000);
+      }
+    };
+
+    window.handleLogout = async function() {
+      await signOut(auth);
+      window.currentUser = null;
+      document.getElementById('user-badge').classList.add('hidden');
+      document.getElementById('open-login-btn').classList.remove('hidden');
+      document.getElementById('unverified-banner').classList.add('hidden');
+    };
+
+    window.resendVerificationEmail = async function() {
+      if (auth.currentUser) {
+        await sendEmailVerification(auth.currentUser);
+        alert('E-mail de vérification renvoyé !');
+      }
+    };
+
+    function showModalMsg(text, type) {
+      const msgEl = document.getElementById('modal-msg');
+      msgEl.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+      if (type === 'error') {
+        msgEl.classList.add('bg-rose-50', 'text-rose-700', 'border-rose-200');
+      } else {
+        msgEl.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+      }
+      msgEl.innerText = text;
+    }
+  </script>
+
+  <!-- TRADUCTIONS, CARTOGRAPHIE & LOGIQUE METIER APP -->
+  <script>
+    // DICTIONNAIRE MULTILINGUE FR / LN / EN
+    const translations = {
+      fr: {
+        subtitle: "Suivi participatif & prédictions de l'électricité au Congo",
+        rulesBtn: "Règles",
+        loginBtn: "Connexion",
+        unverifiedAlert: "Veuillez vérifier votre e-mail pour autoriser les publications.",
+        resendEmail: "Renvoyer",
+        mapTitle: "Carte en temps réel & Statistiques",
+        filterAll: "Tous", filterCut: "Coupures", filterUnstable: "Instables", filterOk: "Normal",
+        legendCut: "Coupure", legendInstable: "Baisse", legendOk: "Normal",
+        statsTitle: "Statistiques par Quartier & Ville",
+        statsSubtitle: "Taux d'interruption du réseau calculé en temps réel",
+        aiDesc: "IA expert délestages & conseils économie d'énergie",
+        aiWelcome: "Mbote ! Je suis Wapi AI. Posez-moi des questions sur les délestages à Brazzaville ou Pointe-Noire, les risques de coupures ou comment préserver vos appareils.",
+        aiSend: "Envoyer",
+        signalTitle: "Signaler une panne",
+        signalSubtitle: "Avertissez la communauté dans votre quartier",
+        labelDept: "Département", labelDistrict: "Arrondissement / Quartier",
+        labelStatus: "État du courant", statusCut: "Coupure", statusUnstable: "Instable", statusOk: "Rétabli",
+        labelComment: "Commentaire (optionnel)", btnSubmitSignal: "Publier le signalement",
+        pollTag: "Sondage Express", pollQuestion: "Avez-vous du courant actuellement chez vous ?",
+        pollYes: "Oui", pollBaisse: "Baisse", pollNo: "Non",
+        pollResYes: "Oui (Réseau OK)", pollResNo: "Non (Pas de courant)",
+        chatTitle: "Salon Départemental",
+        modalAuthTitle: "Accès Wapi courant 242", modalAuthDesc: "Authentification e-mail gratuite et sécurisée",
+        labelEmail: "Adresse E-mail", labelPass: "Mot de passe",
+        btnLogin: "Se connecter", btnSignup: "Créer un compte", btnForgot: "Mot de passe oublié ?"
+      },
+      ln: {
+        subtitle: "Kolanda mpe kosakola makambo ya kourant na Congo",
+        rulesBtn: "Mibeko",
+        loginBtn: "Kota",
+        unverifiedAlert: "Pesa elingi na email na yo mpo opesa basango.",
+        resendEmail: "Tinda lisusu",
+        mapTitle: "Carte ya kourant na ntango oyo",
+        filterAll: "Nyonso", filterCut: "Kourant eke", filterUnstable: "Kourant makasi te", filterOk: "Eza",
+        legendCut: "Kourant eke", legendInstable: "Kourant moke", legendOk: "Eza malamu",
+        statsTitle: "Statistiques na ba Quartiers",
+        statsSubtitle: "Motango ya kourant ekimi na engumba na yo",
+        aiDesc: "IA mpo na koyeba soki kourant ekokende mpe bisaleli",
+        aiWelcome: "Mbote ! Ngai naza Wapi AI. Tuna ngai mituna mpo na délestage na Brazzaville to Pointe-Noire mpe ndenge ya kobatela ba appareils na yo.",
+        aiSend: "Tinda",
+        signalTitle: "Koyebisa soki kourant eke",
+        signalSubtitle: "Yebisa batu ya quartier na yo",
+        labelDept: "Département", labelDistrict: "Arrondissement / Quartier",
+        labelStatus: "Statut ya kourant", statusCut: "Eke", statusUnstable: "Eza makasi te", statusOk: "Ezongi",
+        labelComment: "Maloba mususu (soki olingi)", btnSubmitSignal: "Tinda sango oyo",
+        pollTag: "Mituna ya lombango", pollQuestion: "Boza na kourant sikoyo na ndako ?",
+        pollYes: "Eza", pollBaisse: "Ekiteli", pollNo: "Eke",
+        pollResYes: "Eza (Réseau OK)", pollResNo: "Eke (Kourant ezali te)",
+        chatTitle: "Solola na batu ya Département",
+        modalAuthTitle: "Kota na Wapi courant 242", modalAuthDesc: "Komi kombo na email ya ofele",
+        labelEmail: "Adresse Email", labelPass: "Mot de passe",
+        btnLogin: "Kota sikoyo", btnSignup: "Kela compte", btnForgot: "Obosani mot de passe ?"
+      },
+      en: {
+        subtitle: "Crowdsourced power outage tracking & AI forecasting in Congo",
+        rulesBtn: "Rules",
+        loginBtn: "Login",
+        unverifiedAlert: "Please verify your email address to submit reports and chat.",
+        resendEmail: "Resend",
+        mapTitle: "Real-time Map & Area Statistics",
+        filterAll: "All", filterCut: "Outages", filterUnstable: "Unstable", filterOk: "Restored",
+        legendCut: "Power Outage", legendInstable: "Low Voltage", legendOk: "Normal Power",
+        statsTitle: "Neighborhood & City Breakdown",
+        statsSubtitle: "Live grid failure rates per neighborhood",
+        aiDesc: "AI power assistant & energy conservation guidance",
+        aiWelcome: "Hello! I am Wapi AI. Ask me anything about load shedding schedules in Brazzaville or Pointe-Noire, outage risks, or protecting your home appliances.",
+        aiSend: "Send",
+        signalTitle: "Report Power Status",
+        signalSubtitle: "Notify nearby residents in your neighborhood",
+        labelDept: "Department", labelDistrict: "District / Neighborhood",
+        labelStatus: "Current Grid Status", statusCut: "Outage", statusUnstable: "Unstable", statusOk: "Restored",
+        labelComment: "Comment (optional)", btnSubmitSignal: "Submit Power Report",
+        pollTag: "Express Poll", pollQuestion: "Do you currently have electricity at home?",
+        pollYes: "Yes", pollBaisse: "Fluctuating", pollNo: "No",
+        pollResYes: "Yes (Grid Active)", pollResNo: "No (Power Outage)",
+        chatTitle: "Department Chatroom",
+        modalAuthTitle: "Access Wapi courant 242", modalAuthDesc: "Free and secure email authentication",
+        labelEmail: "Email Address", labelPass: "Password",
+        btnLogin: "Sign In", btnSignup: "Create Account", btnForgot: "Forgot Password?"
+      }
+    };
+
+    let currentLang = 'fr';
+
+    function changeLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key]) {
+          el.innerText = translations[lang][key];
+        }
+      });
+      renderDistrictStats();
+    }
+
+    // GESTION MODE SOMBRE
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const icon = document.getElementById('theme-icon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        icon.className = 'fa-solid fa-moon text-amber-400';
+        localStorage.setItem('wapi_theme', 'light');
+      } else {
+        html.classList.add('dark');
+        icon.className = 'fa-solid fa-sun text-amber-400';
+        localStorage.setItem('wapi_theme', 'dark');
+      }
+    }
+
+    // DONNEES INITIALES & CARTE
+    let map;
+    let markersLayer;
+
+    window.signalsData = [
+      { id: 1, city: 'Brazzaville', district: 'Makelekele', status: 'cut', comment: 'Coupure depuis 08h au 1er arrondissement', lat: -4.2833, lng: 15.2500, time: '10m', user: 'Gabin' },
+      { id: 2, city: 'Brazzaville', district: 'Bacongo', status: 'instable', comment: 'Baisse de tension au niveau de Mpissa', lat: -4.2750, lng: 15.2600, time: '20m', user: 'Clarisse' },
+      { id: 3, city: 'Brazzaville', district: 'Talangaï', status: 'cut', comment: 'Délestage secteur Mpila', lat: -4.2400, lng: 15.3000, time: '35m', user: 'Serge' },
+      { id: 4, city: 'Brazzaville', district: 'Moungali', status: 'ok', comment: 'Courant de retour vers la Rue Péchiney', lat: -4.2550, lng: 15.2750, time: '50m', user: 'Marlyse' },
+      { id: 5, city: 'Pointe-Noire', district: 'Tié-Tié', status: 'cut', comment: 'Panne générale Fond Tié-Tié', lat: -4.7761, lng: 11.8635, time: '15m', user: 'Arnaud' },
+      { id: 6, city: 'Pointe-Noire', district: 'Lumumba', status: 'ok', comment: 'Électricité stable au Centre-ville', lat: -4.7900, lng: 11.8500, time: '1h', user: 'Grace' },
+      { id: 7, city: 'Pointe-Noire', district: 'Mvoumvou', status: 'cut', comment: 'Pas de courant depuis hier soir', lat: -4.7800, lng: 11.8700, time: '2h', user: 'Hervé' }
+    ];
+
+    window.districtStatsData = {
+      'Brazzaville': [
+        { name: 'Makélékélé', cutRate: 82, totalReports: 45 },
+        { name: 'Bacongo', cutRate: 65, totalReports: 38 },
+        { name: 'Poto-Poto', cutRate: 40, totalReports: 29 },
+        { name: 'Moungali', cutRate: 30, totalReports: 52 },
+        { name: 'Ouenzé', cutRate: 75, totalReports: 41 },
+        { name: 'Talangaï', cutRate: 88, totalReports: 67 },
+        { name: 'Mfilou', cutRate: 91, totalReports: 34 },
+        { name: 'Djiri', cutRate: 70, totalReports: 22 }
+      ],
+      'Pointe-Noire': [
+        { name: 'Lumumba', cutRate: 25, totalReports: 60 },
+        { name: 'Mvoumvou', cutRate: 78, totalReports: 42 },
+        { name: 'Tié-Tié', cutRate: 85, totalReports: 73 },
+        { name: 'Loandjili', cutRate: 60, totalReports: 31 },
+        { name: 'Ngoyo', cutRate: 72, totalReports: 28 }
+      ],
+      'Dolisie': [
+        { name: 'Grand Marché', cutRate: 80, totalReports: 18 },
+        { name: 'Quartier Pyramide', cutRate: 90, totalReports: 15 }
+      ]
+    };
+
+    window.sondageVotes = { oui: 18, instable: 12, non: 42 };
+
+    window.chatMessages = {
+      'chat_Brazzaville': [
+        { user: 'Chancel', text: 'Est-ce que Makelekele a le courant ?', time: '14:20' },
+        { user: 'Grace', text: 'Non, toujours pas depuis ce matin...', time: '14:22' }
+      ],
+      'chat_Pointe-Noire': [
+        { user: 'Hervé', text: 'Secteur Fond Tié-Tié coupé à l’instant.', time: '13:50' }
+      ]
+    };
+
+    window.onload = function() {
+      // Restore theme
+      if (localStorage.getItem('wapi_theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.getElementById('theme-icon').className = 'fa-solid fa-sun text-amber-400';
+      }
+
+      initMap();
+      renderDistrictStats();
+      renderSondage();
+      renderChatMessages();
+    };
+
+    function initMap() {
+      map = L.map('map').setView([-4.2634, 15.2429], 12);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap - Wapi courant 242'
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+      updateMapMarkers('all');
+    }
+
+    function updateMapMarkers(filterStatus) {
+      markersLayer.clearLayers();
+
+      window.signalsData.forEach(sig => {
+        if (filterStatus !== 'all' && sig.status !== filterStatus) return;
+
+        let color = sig.status === 'cut' ? '#e11d48' : (sig.status === 'instable' ? '#f59e0b' : '#10b981');
+        let iconHtml = `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>`;
+
+        let customIcon = L.divIcon({
+          html: iconHtml,
+          className: 'custom-map-icon',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
         });
 
-        function checkUserAuthStatus() {
-            const isVerified = localStorage.getItem('wapi_auth_verified');
-            const savedPseudo = localStorage.getItem('wapi_user_pseudo');
-            
-            if (isVerified === 'true' && savedPseudo) {
-                document.getElementById('auth-modal-overlay').classList.add('hidden');
-                document.getElementById('badge-username').textContent = savedPseudo;
-            } else {
-                document.getElementById('auth-modal-overlay').classList.remove('hidden');
-            }
+        let popupContent = `
+          <div style="font-family: 'Inter', sans-serif; padding: 2px;">
+            <strong style="font-size: 13px; color: #0f172a;">${sig.district} (${sig.city})</strong><br/>
+            <span style="font-size: 11px; color: #64748b;">Signalisé par ${sig.user} • Il y a ${sig.time}</span>
+            <p style="margin-top: 4px; font-size: 12px; color: #334155;">${sig.comment}</p>
+          </div>
+        `;
+
+        L.marker([sig.lat, sig.lng], { icon: customIcon })
+          .bindPopup(popupContent)
+          .addTo(markersLayer);
+      });
+    }
+
+    function filterMap(status) {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-slate-900', 'dark:bg-amber-500', 'text-white', 'dark:text-slate-950');
+        btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-300');
+      });
+      event.target.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-300');
+      event.target.classList.add('bg-slate-900', 'dark:bg-amber-500', 'text-white', 'dark:text-slate-950');
+      updateMapMarkers(status);
+    }
+
+    // RENDU DES STATISTIQUES PAR QUARTIER
+    function renderDistrictStats() {
+      const city = document.getElementById('stats-city-select').value;
+      const container = document.getElementById('district-stats-container');
+      const districts = window.districtStatsData[city] || [];
+
+      container.innerHTML = districts.map(item => {
+        let badgeColor = item.cutRate > 75 ? 'bg-rose-500' : (item.cutRate > 40 ? 'bg-amber-500' : 'bg-emerald-500');
+        let textColor = item.cutRate > 75 ? 'text-rose-500' : (item.cutRate > 40 ? 'text-amber-500' : 'text-emerald-500');
+
+        return `
+          <div>
+            <div class="flex justify-between items-center text-xs font-semibold mb-1">
+              <span class="text-slate-800 dark:text-slate-200">${item.name}</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] text-slate-400 font-mono">${item.totalReports} signalements</span>
+                <span class="${textColor} font-bold font-mono">${item.cutRate}% pannes</span>
+              </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div class="${badgeColor} h-2 rounded-full transition-all duration-700" style="width: ${item.cutRate}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // SOUMISSION SIGNALEMENT
+    function submitSignalement(e) {
+      e.preventDefault();
+
+      if (!window.currentUser) {
+        alert(translations[currentLang].unverifiedAlert);
+        openAuthModal();
+        return;
+      }
+
+      const dept = document.getElementById('signal-dept').value;
+      const district = document.getElementById('signal-district').value;
+      const comment = document.getElementById('signal-comment').value;
+      const status = document.querySelector('input[name="signal-status"]:checked').value;
+
+      const lat = -4.2634 + (Math.random() - 0.5) * 0.09;
+      const lng = 15.2429 + (Math.random() - 0.5) * 0.09;
+
+      const newSig = {
+        id: Date.now(),
+        city: dept,
+        district: district,
+        status: status,
+        comment: comment || 'Alerte citoyenne',
+        lat: lat,
+        lng: lng,
+        time: "À l'instant",
+        user: window.currentUser.email.split('@')[0]
+      };
+
+      window.signalsData.unshift(newSig);
+      updateMapMarkers('all');
+
+      document.getElementById('signal-district').value = '';
+      document.getElementById('signal-comment').value = '';
+
+      alert("Signalement publié avec succès !");
+    }
+
+    // SONDAGE
+    function voteSondage(type) {
+      if (!window.currentUser) {
+        openAuthModal();
+        return;
+      }
+
+      if (type === 'oui') window.sondageVotes.oui++;
+      else if (type === 'instable') window.sondageVotes.instable++;
+      else window.sondageVotes.non++;
+
+      renderSondage();
+    }
+
+    function renderSondage() {
+      const total = window.sondageVotes.oui + window.sondageVotes.instable + window.sondageVotes.non;
+      document.getElementById('total-votes-count').innerText = total + " votes";
+
+      const ouiPc = total > 0 ? Math.round((window.sondageVotes.oui / total) * 100) : 0;
+      const nonPc = total > 0 ? Math.round((window.sondageVotes.non / total) * 100) : 0;
+
+      document.getElementById('vote-oui-pc').innerText = ouiPc + "%";
+      document.getElementById('vote-non-pc').innerText = nonPc + "%";
+
+      document.getElementById('bar-oui').style.width = ouiPc + "%";
+      document.getElementById('bar-non').style.width = nonPc + "%";
+    }
+
+    // CHAT SALONS
+    function switchChatRoom() {
+      renderChatMessages();
+    }
+
+    function renderChatMessages() {
+      const room = document.getElementById('chat-room-select').value;
+      const container = document.getElementById('chat-messages');
+      const messages = window.chatMessages[room] || [];
+
+      if (messages.length === 0) {
+        container.innerHTML = `<div class="text-center text-slate-400 py-6">Aucun message pour l'instant dans ce salon.</div>`;
+        return;
+      }
+
+      container.innerHTML = messages.map(msg => `
+        <div class="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-bold text-slate-800 dark:text-slate-200 text-[11px]">${msg.user}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${msg.time}</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 leading-snug text-xs">${msg.text}</p>
+        </div>
+      `).join('');
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendChatMessage(e) {
+      e.preventDefault();
+      if (!window.currentUser) {
+        openAuthModal();
+        return;
+      }
+
+      const input = document.getElementById('chat-input');
+      const room = document.getElementById('chat-room-select').value;
+
+      if (!window.chatMessages[room]) window.chatMessages[room] = [];
+
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+      window.chatMessages[room].push({
+        user: window.currentUser.email.split('@')[0],
+        text: input.value,
+        time: timeStr
+      });
+
+      input.value = '';
+      renderChatMessages();
+    }
+
+    // INTEGRATION IA GEMINI API (Wapi AI)
+    async function askGeminiAI(e) {
+      e.preventDefault();
+      const inputEl = document.getElementById('ai-input');
+      const query = inputEl.value.trim();
+      if (!query) return;
+
+      appendAIMessage('user', query);
+      inputEl.value = '';
+
+      // Message de chargement temporaire
+      const loadingId = 'ai-loading-' + Date.now();
+      appendAILoading(loadingId);
+
+      const systemPrompt = `Tu es Wapi AI, l'assistant intelligent du réseau électrique en République du Congo (Wapi courant 242).
+      Tu réponds avec concision (maximum 2 à 3 phrases) sur les délestages, les conseils de préservation des appareils ménagers lors des réarrangements de lignes (E2C), et la situation à Brazzaville (Makelekele, Moungali, Talangai...) et Pointe-Noire (Tie-Tie, Lumumba...).
+      Tu dois adapter la langue de ta réponse selon la question posée : si l'utilisateur s'adresse en Lingala, réponds en Lingala. S'il parle Anglais, réponds en Anglais. Sinon réponds en Français.`;
+
+      const apiKey = ""; // Canvas runtime injection
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: query }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] }
+          })
+        });
+
+        const result = await response.json();
+        removeAILoading(loadingId);
+
+        if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+          const aiText = result.candidates[0].content.parts[0].text;
+          appendAIMessage('ai', aiText);
+        } else {
+          fallbackAIResponse(query);
         }
+      } catch (err) {
+        removeAILoading(loadingId);
+        fallbackAIResponse(query);
+      }
+    }
 
-        function handleRequestOTP(e) {
-            e.preventDefault();
-            const pseudo = document.getElementById('input-pseudo').value.trim();
-            const email = document.getElementById('input-email').value.trim();
+    function fallbackAIResponse(query) {
+      const q = query.toLowerCase();
+      let response = "D'après les données actuelles de Wapi 242, les zones de Makélékélé, Talangaï et Tié-Tié connaissent une tension sur le réseau. Pensez à débrancher vos téléviseurs et réfrigérateurs lors des coupures pour éviter le choc de surtension lors du rétablissement !";
+      
+      if (q.includes('lingala') || q.includes('mbote') || q.includes('sango')) {
+        response = "Mbote ! Sikoyo kourant ezali kokatana mingi na ba quartiers ya Makelekele mpe Tie-Tie. Longola ba appareils na yo na prise soki kourant ekeyi mpo ebeba te !";
+      } else if (q.includes('english') || q.includes('power') || q.includes('light')) {
+        response = "Power outages are currently heavily reported in Makélékélé and Tié-Tié. Remember to unplug sensitive electronics during load shedding to prevent surge damages.";
+      }
 
-            if (pseudo.length < 2) return alert("Veuillez saisir un pseudo valide.");
+      appendAIMessage('ai', response);
+    }
 
-            // Génération OTP Simulé
-            simOTPCode = Math.floor(100000 + Math.random() * 900000).toString();
-            console.log(`[AUTH SÉCURISÉE] Code OTP envoyé à ${email} : ${simOTPCode}`);
-            
-            alert(`⚡ SECURITY ALERT WAPI COURANT:\nVotre code de vérification à 6 chiffres est : ${simOTPCode}`);
+    function appendAIMessage(sender, text) {
+      const container = document.getElementById('ai-messages');
+      const isUser = sender === 'user';
 
-            document.getElementById('display-target-email').textContent = email;
-            document.getElementById('auth-form-step1').classList.add('hidden');
-            document.getElementById('auth-form-step2').classList.remove('hidden');
-        }
+      const msgHtml = isUser ? `
+        <div class="flex gap-2.5 items-start justify-end">
+          <div class="bg-amber-500 text-slate-950 font-medium p-2.5 rounded-2xl rounded-tr-none max-w-[85%] leading-relaxed">
+            ${text}
+          </div>
+        </div>
+      ` : `
+        <div class="flex gap-2.5 items-start">
+          <div class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 text-[10px] mt-0.5">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 text-slate-200 p-2.5 rounded-2xl rounded-tl-none border border-slate-700/60 max-w-[88%] leading-relaxed">
+            ${text}
+          </div>
+        </div>
+      `;
 
-        function handleVerifyOTP(e) {
-            e.preventDefault();
-            const enteredOTP = document.getElementById('input-otp-code').value.trim();
-            const pseudo = document.getElementById('input-pseudo').value.trim();
-            const email = document.getElementById('input-email').value.trim();
+      container.insertAdjacentHTML('beforeend', msgHtml);
+      container.scrollTop = container.scrollHeight;
+    }
 
-            if (enteredOTP === simOTPCode) {
-                localStorage.setItem('wapi_auth_verified', 'true');
-                localStorage.setItem('wapi_user_pseudo', pseudo);
-                localStorage.setItem('wapi_user_email', email);
+    function appendAILoading(id) {
+      const container = document.getElementById('ai-messages');
+      const loadingHtml = `
+        <div id="${id}" class="flex gap-2.5 items-start">
+          <div class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 text-[10px] mt-0.5">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 text-slate-400 p-2.5 rounded-2xl rounded-tl-none border border-slate-700/60 text-xs italic flex items-center gap-2">
+            <i class="fa-solid fa-spinner animate-spin"></i> Wapi AI réfléchit...
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', loadingHtml);
+      container.scrollTop = container.scrollHeight;
+    }
 
-                document.getElementById('auth-modal-overlay').classList.add('hidden');
-                document.getElementById('badge-username').textContent = pseudo;
-            } else {
-                alert("Code de vérification incorrect. Veuillez réessayer.");
-            }
-        }
+    function removeAILoading(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
 
-        function resetAuthStep() {
-            document.getElementById('auth-form-step2').classList.add('hidden');
-            document.getElementById('auth-form-step1').classList.remove('hidden');
-        }
+    function clearChatAI() {
+      const container = document.getElementById('ai-messages');
+      container.innerHTML = `
+        <div class="flex gap-2.5 items-start">
+          <div class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 text-[10px] mt-0.5">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 text-slate-200 p-2.5 rounded-2xl rounded-tl-none border border-slate-700/60 max-w-[88%] leading-relaxed">
+            ${translations[currentLang].aiWelcome}
+          </div>
+        </div>
+      `;
+    }
 
-        /* --- 3. CARTE INTERACTIVE LEAFLET & GÉOLOCALISATION GPS --- */
-        function initLeafletMap() {
-            // Centrage par défaut sur le Congo (Brazzaville)
-            map = L.map('map', { zoomControl: false }).setView([-4.2634, 15.2429], 13);
-            L.control.zoom({ position: 'topright' }).addTo(map);
+    // MODALES UI
+    function openAuthModal() {
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap | Wapi Courant 242'
-            }).addTo(map);
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
 
-            // Marqueurs de simulation initiaux
-            addSimulatedReports();
-        }
+    document.getElementById('rules-toggle-btn').addEventListener('click', () => {
+      document.getElementById('rules-modal').classList.remove('hidden');
+    });
 
-        function getUserGPSLocation() {
-            if (!navigator.geolocation) {
-                return alert("La géolocalisation n'est pas supportée par votre navigateur.");
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-
-                    map.setView([lat, lng], 16);
-
-                    if (userGPSMarker) {
-                        userGPSMarker.setLatLng([lat, lng]);
-                    } else {
-                        userGPSMarker = L.marker([lat, lng], {
-                            title: "Votre position"
-                        }).addTo(map)
-                        .bindPopup("<b>📍 Votre position GPS exacte</b><br>Signalement prêt.")
-                        .openPopup();
-                    }
-                },
-                (err) => alert("Impossible d'obtenir la position GPS : " + err.message),
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
-
-        function triggerReportCurrentLocation() {
-            const pseudo = localStorage.getItem('wapi_user_pseudo') || "Citoyen";
-            
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-
-                    L.circle([lat, lng], { color: 'red', fillColor: '#f03', fillOpacity: 0.5, radius: 200 }).addTo(map);
-                    
-                    L.marker([lat, lng]).addTo(map)
-                        .bindPopup(`<b>⚡ Coupure Signalée !</b><br>Par : ${pseudo}<br>Heure : ${new Date().toLocaleTimeString()}`)
-                        .openPopup();
-
-                    map.setView([lat, lng], 15);
-                    alert("✅ Signalement de coupure enregistré à votre position exacte !");
-                }, () => {
-                    alert("Veuillez activer votre GPS pour effectuer un signalement précis.");
-                });
-            }
-        }
-
-        function addSimulatedReports() {
-            // Signalements fictifs à Brazzaville et Pointe-Noire
-            const points = [
-                { lat: -4.268, lng: 15.245, zone: "Poto-Poto (Brazzaville)", status: "Coupure en cours" },
-                { lat: -4.280, lng: 15.230, zone: "Bacongo (Brazzaville)", status: "Courant Rétabli" },
-                { lat: -4.795, lng: 11.850, zone: "Grand Marché (Pointe-Noire)", status: "Coupure en cours" }
-            ];
-
-            points.forEach(pt => {
-                const isOff = pt.status.includes('Coupure');
-                L.circleMarker([pt.lat, pt.lng], {
-                    color: isOff ? '#dc2626' : '#16a34a',
-                    radius: 9,
-                    fillOpacity: 0.8
-                }).addTo(map)
-                .bindPopup(`<b>${pt.zone}</b><br>Statut : ${pt.status}`);
-            });
-        }
-
-        /* --- 4. GESTION DU CHAT & DES SALONS --- */
-        function onSalonChange(salonId) {
-            renderChatMessages(salonId);
-        }
-
-        function renderChatMessages(salonId) {
-            const box = document.getElementById('chat-messages-box');
-            box.innerHTML = '';
-            
-            const messages = salonsStore[salonId] || [];
-
-            if (messages.length === 0) {
-                box.innerHTML = `<div class="text-center text-xs text-slate-400 my-6">Aucun message dans ce salon. Soyez le premier à informer votre zone !</div>`;
-                return;
-            }
-
-            messages.forEach(m => {
-                const div = document.createElement('div');
-                div.className = "bg-white p-3 rounded-xl border border-slate-200 shadow-sm max-w-[88%]";
-                div.innerHTML = `
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold text-xs text-blue-700">${m.user}</span>
-                        <span class="text-[10px] text-slate-400">${m.time}</span>
-                    </div>
-                    <p class="text-sm text-slate-700">${m.text}</p>
-                `;
-                box.appendChild(div);
-            });
-
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function handleSendChatMessage(e) {
-            e.preventDefault();
-            const input = document.getElementById('chat-input-text');
-            const text = input.value.trim();
-            const salonId = document.getElementById('salon-select').value;
-            const pseudo = localStorage.getItem('wapi_user_pseudo') || "Citoyen";
-
-            if (!text) return;
-
-            if (!salonsStore[salonId]) salonsStore[salonId] = [];
-
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            salonsStore[salonId].push({ user: pseudo, text: text, time: timeStr });
-
-            input.value = '';
-            renderChatMessages(salonId);
-        }
-
-        /* --- 5. ASSISTANT IA INTÉGRÉ --- */
-        function handleSendAIMessage(e) {
-            e.preventDefault();
-            const input = document.getElementById('ai-input-text');
-            const text = input.value.trim();
-            if (!text) return;
-
-            const box = document.getElementById('ai-messages-box');
-
-            // Message utilisateur
-            const userDiv = document.createElement('div');
-            userDiv.className = "bg-purple-600 text-white p-3 rounded-xl shadow-sm text-sm ml-auto max-w-[85%]";
-            userDiv.textContent = text;
-            box.appendChild(userDiv);
-
-            input.value = '';
-            box.scrollTop = box.scrollHeight;
-
-            // Réponse de l'assistant IA
-            setTimeout(() => {
-                const aiDiv = document.createElement('div');
-                aiDiv.className = "bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-sm text-slate-700 leading-relaxed max-w-[90%]";
-                aiDiv.innerHTML = generateAIResponse(text);
-                box.appendChild(aiDiv);
-                box.scrollTop = box.scrollHeight;
-            }, 500);
-        }
-
-        function generateAIResponse(query) {
-            const q = query.toLowerCase();
-            if (q.includes('appareil') || q.includes('frigo') || q.includes('tele')) {
-                return "💡 <strong>Conseil de protection :</strong> Débranchez vos appareils sensibles immédiatement lors d'une coupure. Attendez environ 5 minutes après le retour de l'électricité avant de les rebrancher afin d'éviter les pics de tension.";
-            } else if (q.includes('panne') || q.includes('coupure') || q.includes('pourquoi')) {
-                return "⚡ Les coupures peuvent être dues à des maintenances sur le réseau ou des délestages. Vérifiez le salon de votre département pour voir si vos voisins subissent la même panne.";
-            } else if (q.includes('partager') || q.includes('whatsapp')) {
-                return "📲 Vous pouvez utiliser le bouton <strong>Partager</strong> en haut à droite pour diffuser l'application dans vos groupes WhatsApp de quartier !";
-            } else {
-                return "🤖 Je suis l'Assistant Wapi 242. Je peux vous aider à mieux gérer l'énergie domestique, vous donner des conseils de sécurité ou vous expliquer comment signaler une panne.";
-            }
-        }
-
-        /* --- 6. NAVIGATION MOBILES & UTILS --- */
-        function switchSidebarTab(tab) {
-            const btnChat = document.getElementById('btn-tab-chat');
-            const btnAi = document.getElementById('btn-tab-ai');
-            const contentChat = document.getElementById('tab-content-chat');
-            const contentAi = document.getElementById('tab-content-ai');
-
-            if (tab === 'chat') {
-                btnChat.className = "flex-1 py-3 px-4 font-bold text-sm text-blue-700 border-b-2 border-blue-700 bg-white flex items-center justify-center gap-2 transition";
-                btnAi.className = "flex-1 py-3 px-4 font-bold text-sm text-slate-500 hover:text-blue-600 flex items-center justify-center gap-2 transition";
-                contentChat.classList.remove('hidden');
-                contentAi.classList.add('hidden');
-                renderChatMessages(document.getElementById('salon-select').value);
-            } else {
-                btnAi.className = "flex-1 py-3 px-4 font-bold text-sm text-purple-700 border-b-2 border-purple-700 bg-white flex items-center justify-center gap-2 transition";
-                btnChat.className = "flex-1 py-3 px-4 font-bold text-sm text-slate-500 hover:text-blue-600 flex items-center justify-center gap-2 transition";
-                contentAi.classList.remove('hidden');
-                contentChat.classList.add('hidden');
-            }
-        }
-
-        function toggleSidebarMobile() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('-translate-x-full');
-        }
-
-        function shareAppWhatsApp() {
-            const text = encodeURIComponent("⚡ Suivez l'état du réseau électrique et les coupures en direct au Congo sur Wapi Courant 242 : " + window.location.href);
-            window.open("https://api.whatsapp.com/send?text=" + text, "_blank");
-        }
-    </script>
+    function closeRulesModal() {
+      document.getElementById('rules-modal').classList.add('hidden');
+    }
+  </script>
 </body>
 </html>
